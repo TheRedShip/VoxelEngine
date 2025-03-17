@@ -22,60 +22,17 @@ void					updateDataOnGPU(Scene &scene, std::vector<Buffer *> buffers);
 
 int main(int argc, char **argv)
 {
-	(void) argc;
-	(void) argv;
-	
 	std::string args = "";
-	Scene		scene(args);
-	
+	if (argc == 2)
+		args = argv[1];
+
+	Scene		scene;
 	Window		window(&scene, WIDTH, HEIGHT, "RT_GPU", 0);
+	
+	scene.parseScene(args);
 
 	GLuint VAO;
 	setupScreenTriangle(&VAO);
-
-	const int dim = 128;
-	std::vector<unsigned char> voxelData(dim * dim * dim * 4, 0);  // 4 channels per voxel
-	std::vector<float> voxelNormals(dim * dim * dim * 3, 0.0f);  // 4 channels per voxel
-
-	memset(voxelData.data(), 0, voxelData.size());
-	// Fill a sphere of voxels with a red color (R=255, G=0, B=0, A=255 indicates solid)
-	for (int z = 0; z < dim; ++z) {
-		for (int y = 0; y < dim; ++y) {
-			for (int x = 0; x < dim; ++x) {
-				float dx = x - dim / 2.0f;
-				float dy = (y + 30) - dim / 2.0f;
-				float dz = z - dim / 2.0f;
-				int indexData = 4 * (x + dim * (y + dim * z));
-
-				if (std::sqrt(dx * dx + dy * dy + dz * dz) < 16.0 / 2.0f) {
-					voxelData[indexData + 0] = 150 + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 10; // Red
-					voxelData[indexData + 1] = 0;   // Green
-					voxelData[indexData + 2] = 0;   // Blue
-					voxelData[indexData + 3] = 255; // Alpha (non-zero means solid)
-				}
-				if (y == 0)
-				{
-					voxelData[indexData + 0] = 0; // Red
-					voxelData[indexData + 1] = 150 + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 10;
-					voxelData[indexData + 2] = 0;   // Blue
-					voxelData[indexData + 3] = 255; // Alpha (non-zero means solid)
-				}
-			}
-		}
-	}
-
-
-	// Create and upload the 3D texture at texture unit index 2
-	GLuint voxelTex;
-	glGenTextures(1, &voxelTex);
-	glActiveTexture(GL_TEXTURE1);  // Bind to texture unit 2
-	glBindTexture(GL_TEXTURE_3D, voxelTex);
-	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, dim, dim, dim, 0, GL_RGBA, GL_UNSIGNED_BYTE, voxelData.data());
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 	std::vector<GLuint> textures = generateTextures(1);
 	
@@ -105,6 +62,7 @@ int main(int argc, char **argv)
 		raytracing_program.use();
 		raytracing_program.set_int("u_frameCount", window.getFrameCount());
 		raytracing_program.set_float("u_time", (float)(glfwGetTime()));
+		raytracing_program.set_float("u_voxelDim", VOXEL_DIM);
 		raytracing_program.set_vec2("u_resolution", glm::vec2(WIDTH, HEIGHT));
 		
 		raytracing_program.dispathCompute((WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1);

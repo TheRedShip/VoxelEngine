@@ -108,6 +108,11 @@ void	ShaderProgram::set_vec2(const std::string &name, const glm::vec2 &value) co
 	glUniform2fv(glGetUniformLocation(_program, name.c_str()), 1, glm::value_ptr(value));
 }
 
+void	ShaderProgram::set_vec3(const std::string &name, const glm::vec3 &value) const
+{
+	glUniform3fv(glGetUniformLocation(_program, name.c_str()), 1, glm::value_ptr(value));
+}
+
 void	ShaderProgram::set_textures(std::map<std::string, std::vector<GLuint>> texture_ids)
 {
 	size_t	start_texture = 0;

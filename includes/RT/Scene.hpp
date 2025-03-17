@@ -44,8 +44,10 @@ class Camera;
 class Scene
 {
 	public:
-		Scene(std::string &name);
+		Scene();
 		~Scene();
+
+		void							parseScene(std::string &name);
 
 		void							addMaterial(Material *material);
 		

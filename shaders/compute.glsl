@@ -6,6 +6,7 @@ layout(binding = 1) uniform sampler3D u_voxelData;
 uniform vec2    u_resolution;
 uniform int		u_frameCount;
 uniform float	u_time;
+uniform float	u_voxelDim;
 
 
 struct GPUCamera
@@ -39,33 +40,30 @@ struct hitInfo
 
 vec3 getGradientNormal(ivec3 pos)
 {
-	const vec3 voxelDim = vec3(128.0);
+	vec3 normal = vec3(0.);
 
-    float eps = 1.0;
-    vec3 texCoord = (vec3(pos) + 0.5) / voxelDim;
-    
-    // Sample densities at neighboring points
-    float x1 = texture(u_voxelData, texCoord + vec3(eps, 0.0, 0.0) / voxelDim).a;
-    float x2 = texture(u_voxelData, texCoord - vec3(eps, 0.0, 0.0) / voxelDim).a;
-    
-    float y1 = texture(u_voxelData, texCoord + vec3(0.0, eps, 0.0) / voxelDim).a;
-    float y2 = texture(u_voxelData, texCoord - vec3(0.0, eps, 0.0) / voxelDim).a;
-    
-    float z1 = texture(u_voxelData, texCoord + vec3(0.0, 0.0, eps) / voxelDim).a;
-    float z2 = texture(u_voxelData, texCoord - vec3(0.0, 0.0, eps) / voxelDim).a;
-    
-    // Calculate the gradient using central differences
-    vec3 normal = vec3(x1 - x2, -(y1 - y2), z1 - z2);
-    
-    // Normalize the vector
-    return normalize(normal);
+	for (int x = -1; x <= 1; x++)
+	{
+		for (int y = -1; y <= 1; y++)
+		{
+			for (int z = -1; z <= 1; z++)
+			{
+				vec3 offset = vec3(x, y, z);
+
+				vec3 texCoords = (vec3(pos) + offset + 0.5) / u_voxelDim;
+				vec4 voxelColor = texture(u_voxelData, texCoords);
+				
+				normal += offset * voxelColor.a;
+			}
+		}
+	}
+
+    return normalize(-normal);
 }
 
 
 bool voxelRayMarch(Ray ray, out hitInfo hit)
 {
-	const vec3 voxelDim   = vec3(128.0);
-
 	vec3 tDelta = vec3(0.0);
 	vec3 tMax   = vec3(0.0);
 	ivec3 steps = ivec3(0);
@@ -92,12 +90,12 @@ bool voxelRayMarch(Ray ray, out hitInfo hit)
 
 	int axis = 0;
 
-	for (int i = 0; i < 128; i++)
+	for (int i = 0; i < u_voxelDim * 3; i++)
 	{
-		if (ipos.x < 0 || ipos.y < 0 || ipos.z < 0 || ipos.x >= 128 || ipos.y >= 128 || ipos.z >= 128)
+		if (ipos.x < 0 || ipos.y < 0 || ipos.z < 0 || ipos.x >= u_voxelDim || ipos.y >= u_voxelDim || ipos.z >= u_voxelDim)
 			return (false);
 
-		vec3 texCoords = (vec3(ipos) + 0.5) / voxelDim;
+		vec3 texCoords = (vec3(ipos) + 0.5) / u_voxelDim;
 		vec4 voxelColor = texture(u_voxelData, texCoords);
 		
 		if (voxelColor.a != 0.0)
@@ -127,17 +125,17 @@ vec3 pathtrace(Ray ray, inout uint rng_state)
 {
 	vec3 color = vec3(1.);
 
-	vec3 light_dir = normalize(vec3(sin(u_time), -0.5, -0.5));
+	vec3 light_dir = normalize(vec3(sin(u_time * 0.005), -0.5, 0.));
 
 	for (int i = 0; i < 1; i++)
 	{
 		hitInfo hit;
 		if (!voxelRayMarch(ray, hit))
 		{
-			color *= vec3(0.1, 0.3, 0.9);
+			color *= vec3(0.2, 0.4, 1.0);
 			break;
 		}
-
+		
 		color *= hit.color.rgb;
 
 		//shadow ray//
@@ -201,5 +199,4 @@ void main()
 	vec3 color = pathtrace(ray, rng_state);
 
 	imageStore(output_image, pixel_coords, vec4(sqrt(color), 1.0));
-	// imageStore(output_image, pixel_coords, vec4(hit.normal, 1.0));
 }

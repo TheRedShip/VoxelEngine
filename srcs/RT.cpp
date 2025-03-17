@@ -6,7 +6,7 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/27 14:51:49 by TheRed            #+#    #+#             */
-/*   Updated: 2025/03/17 12:10:31 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/17 16:58:09 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,16 +46,12 @@ int main(int argc, char **argv)
 				float dy = (y + 30) - dim / 2.0f;
 				float dz = z - dim / 2.0f;
 				int indexData = 4 * (x + dim * (y + dim * z));
-				int indexNormals = 3 * (x + dim * (y + dim * z));
+
 				if (std::sqrt(dx * dx + dy * dy + dz * dz) < 16.0 / 2.0f) {
 					voxelData[indexData + 0] = 150 + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 10; // Red
 					voxelData[indexData + 1] = 0;   // Green
 					voxelData[indexData + 2] = 0;   // Blue
 					voxelData[indexData + 3] = 255; // Alpha (non-zero means solid)
-
-					voxelNormals[indexNormals + 0] = dx / 16.0f;
-					voxelNormals[indexNormals + 1] = dy / 16.0f;
-					voxelNormals[indexNormals + 2] = dz / 16.0f;
 				}
 				if (y == 0)
 				{
@@ -63,10 +59,6 @@ int main(int argc, char **argv)
 					voxelData[indexData + 1] = 150 + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 10;
 					voxelData[indexData + 2] = 0;   // Blue
 					voxelData[indexData + 3] = 255; // Alpha (non-zero means solid)
-
-					voxelNormals[indexNormals + 0] = 0;
-					voxelNormals[indexNormals + 1] = 1;
-					voxelNormals[indexNormals + 2] = 0;
 				}
 			}
 		}
@@ -79,18 +71,6 @@ int main(int argc, char **argv)
 	glActiveTexture(GL_TEXTURE1);  // Bind to texture unit 2
 	glBindTexture(GL_TEXTURE_3D, voxelTex);
 	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, dim, dim, dim, 0, GL_RGBA, GL_UNSIGNED_BYTE, voxelData.data());
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-	// Create and upload the 3D texture at texture unit index 2
-	GLuint voxelNormalTex;
-	glGenTextures(1, &voxelNormalTex);
-	glActiveTexture(GL_TEXTURE2);  // Bind to texture unit 2
-	glBindTexture(GL_TEXTURE_3D, voxelNormalTex);
-	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB16F, dim, dim, dim, 0, GL_RGB, GL_FLOAT, voxelNormals.data());
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

@@ -2,7 +2,6 @@
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(binding = 0, rgba32f) uniform image2D output_image;
 layout(binding = 1) uniform sampler3D u_voxelData;
-layout(binding = 2) uniform sampler3D u_voxelNormals;
 
 uniform vec2    u_resolution;
 uniform int		u_frameCount;
@@ -38,7 +37,30 @@ struct hitInfo
 	vec4 color;
 };
 
-#include "shaders/random.glsl"
+vec3 getGradientNormal(ivec3 pos)
+{
+	const vec3 voxelDim = vec3(128.0);
+
+    float eps = 1.0;
+    vec3 texCoord = (vec3(pos) + 0.5) / voxelDim;
+    
+    // Sample densities at neighboring points
+    float x1 = texture(u_voxelData, texCoord + vec3(eps, 0.0, 0.0) / voxelDim).a;
+    float x2 = texture(u_voxelData, texCoord - vec3(eps, 0.0, 0.0) / voxelDim).a;
+    
+    float y1 = texture(u_voxelData, texCoord + vec3(0.0, eps, 0.0) / voxelDim).a;
+    float y2 = texture(u_voxelData, texCoord - vec3(0.0, eps, 0.0) / voxelDim).a;
+    
+    float z1 = texture(u_voxelData, texCoord + vec3(0.0, 0.0, eps) / voxelDim).a;
+    float z2 = texture(u_voxelData, texCoord - vec3(0.0, 0.0, eps) / voxelDim).a;
+    
+    // Calculate the gradient using central differences
+    vec3 normal = vec3(x1 - x2, -(y1 - y2), z1 - z2);
+    
+    // Normalize the vector
+    return normalize(normal);
+}
+
 
 bool voxelRayMarch(Ray ray, out hitInfo hit)
 {
@@ -68,45 +90,74 @@ bool voxelRayMarch(Ray ray, out hitInfo hit)
 	
 	float tHit;
 
-	for (int i = 0; i < 128 * 3; i++)
+	int axis = 0;
+
+	for (int i = 0; i < 128; i++)
 	{
 		if (ipos.x < 0 || ipos.y < 0 || ipos.z < 0 || ipos.x >= 128 || ipos.y >= 128 || ipos.z >= 128)
 			return (false);
 
 		vec3 texCoords = (vec3(ipos) + 0.5) / voxelDim;
 		vec4 voxelColor = texture(u_voxelData, texCoords);
-		vec3 voxelNormal = texture(u_voxelNormals, texCoords).rgb;
 		
 		if (voxelColor.a != 0.0)
 		{
 			hit.color = voxelColor;
 			hit.position = vec3(ipos) + 0.5;
-			hit.normal = voxelNormal;
+			hit.normal = getGradientNormal(ipos);
 			return (true);
 		}
 		
 		// Choose the next axis to step: x, y, or z
 		if (tMax.x < tMax.y && tMax.x < tMax.z)
-		{
-			tHit = tMax.x;
-			ipos.x += steps.x;
-			tMax.x += tDelta.x;
-		}
+			axis = 0;
 		else if (tMax.y < tMax.z)
-		{
-			tHit = tMax.y;
-			ipos.y += steps.y;
-			tMax.y += tDelta.y;
-		}
+			axis = 1;
 		else
-		{
-			tHit = tMax.z;
-			ipos.z += steps.z;
-			tMax.z += tDelta.z;
-		}
+			axis = 2;
+
+		tHit = tMax[axis];
+		ipos[axis] += steps[axis];
+		tMax[axis] += tDelta[axis];
 	}
 	return (false);
 }
+
+vec3 pathtrace(Ray ray, inout uint rng_state)
+{
+	vec3 color = vec3(1.);
+
+	vec3 light_dir = normalize(vec3(sin(u_time), -0.5, -0.5));
+
+	for (int i = 0; i < 1; i++)
+	{
+		hitInfo hit;
+		if (!voxelRayMarch(ray, hit))
+		{
+			color *= vec3(0.1, 0.3, 0.9);
+			break;
+		}
+
+		color *= hit.color.rgb;
+
+		//shadow ray//
+		Ray shadow_ray;
+		shadow_ray.origin = hit.position + hit.normal;
+		shadow_ray.direction = -light_dir;
+
+		hitInfo temp;
+		if (voxelRayMarch(shadow_ray, temp))
+			color.rgb *= 0.75;
+		//
+		
+		float diffuse = max(dot(hit.normal, -light_dir), 0.1);
+		color *= diffuse;
+	}
+	
+	return (color);
+}
+
+#include "shaders/random.glsl"
 
 Ray initRay(vec2 uv, inout uint rng_state)
 {
@@ -147,25 +198,8 @@ void main()
 
 	Ray ray = initRay(uv, rng_state);
 
+	vec3 color = pathtrace(ray, rng_state);
 
-	vec3 light_dir = normalize(vec3(sin(u_time), -1.0, 0.));
-	
-	hitInfo hit;
-	if (voxelRayMarch(ray, hit))
-	{
-		ray.origin = hit.position + normalize(hit.normal);
-		ray.direction = -light_dir;
-
-		hitInfo temp;
-		if (voxelRayMarch(ray, temp))
-			hit.color.rgb *= 0.75;
-		
-		float diffuse = max(dot(hit.normal, -light_dir), 0.25);
-		hit.color.rgb *= diffuse;
-	}
-	else
-		hit.color = vec4(vec3(0.), 1.0);
-	
-
-	imageStore(output_image, pixel_coords, sqrt(hit.color));
+	imageStore(output_image, pixel_coords, vec4(sqrt(color), 1.0));
+	// imageStore(output_image, pixel_coords, vec4(hit.normal, 1.0));
 }

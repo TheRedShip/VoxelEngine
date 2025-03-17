@@ -6,7 +6,7 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 20:21:13 by ycontre           #+#    #+#             */
-/*   Updated: 2024/10/14 19:52:40 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/02/13 18:59:18 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,12 +16,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-const char *loadFileWithIncludes(const std::string& path)
+std::stringstream loadFileWithIncludes(const std::string& path, std::vector<std::string> &included_files)
 {
     std::ifstream file(path);
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << path << std::endl;
-        return "";
+        return std::stringstream();
     }
 
     std::stringstream fileContent;
@@ -36,7 +36,9 @@ const char *loadFileWithIncludes(const std::string& path)
             if (start != std::string::npos && end != std::string::npos && end > start)
 			{
                 std::string includePath = line.substr(start + 1, end - start - 1);
-                std::string includedContent = loadFileWithIncludes(includePath);
+                included_files.push_back(includePath);
+
+                std::string includedContent = loadFileWithIncludes(includePath, included_files).str();
                 fileContent << includedContent << "\n";
             }
         }
@@ -44,7 +46,7 @@ const char *loadFileWithIncludes(const std::string& path)
             fileContent << line << "\n";
     }
 
-    return strdup(fileContent.str().c_str());
+    return (fileContent);
 }
 
 
@@ -61,149 +63,86 @@ void printWithLineNumbers(const char *str)
         std::cout << lineNumber++ << ": " << line << std::endl;
 }
 
-Shader::Shader(std::string vertexPath, std::string fragmentPath, std::string computePath)
+Shader::Shader(GLenum type, const std::string &file_path)
 {
-	const char *vertexCode = loadFileWithIncludes(vertexPath);
-	const char *fragmentCode = loadFileWithIncludes(fragmentPath);
-	const char *computeCode = loadFileWithIncludes(computePath);
+	_type = type;
+	_file_path = file_path;
+	_shader_id = 0;
 
-	printWithLineNumbers(computeCode);
-
-	_vertex = glCreateShader(GL_VERTEX_SHADER);
-	
-	glShaderSource(_vertex, 1, &vertexCode, NULL);
-	glCompileShader(_vertex);
-
-	checkCompileErrors(_vertex);
-	
-	_fragment = glCreateShader(GL_FRAGMENT_SHADER);
-	
-	glShaderSource(_fragment, 1, &fragmentCode, NULL);
-	glCompileShader(_fragment);
-
-	checkCompileErrors(_fragment);
-
-	_compute = glCreateShader(GL_COMPUTE_SHADER);
-
-	glShaderSource(_compute, 1, &computeCode, NULL);
-	glCompileShader(_compute);
-
-	checkCompileErrors(_compute);
+	this->compile();
 }
 
 Shader::~Shader(void)
 {
-	glDeleteShader(_vertex);
-	glDeleteShader(_fragment);
-	glDeleteShader(_compute);
-	glDeleteProgram(_program);
-	glDeleteProgram(_program_compute);
 }
 
-void Shader::attach(void)
+void	Shader::compile()
 {
-	_program = glCreateProgram();
-	_program_compute = glCreateProgram();
+	_shader_id = glCreateShader(_type);
+	
+    std::vector<std::string> files;
+    files.push_back(_file_path);
 
-	glAttachShader(_program, _vertex);
-	glAttachShader(_program, _fragment);
-	glAttachShader(_program_compute, _compute);
+	std::string shader_code = loadFileWithIncludes(_file_path, files).str();
+    for (auto &file : files)
+        _files_timestamps[file] = std::filesystem::last_write_time(file);
 
-	glLinkProgram(_program);
-	glLinkProgram(_program_compute);
+    for (auto &define : _defines)
+        shader_code = "#define SHADER_" + define.first + " " + define.second + "\n" + shader_code;
+    shader_code = "#version 430\n" + shader_code;
 
-	glGenTextures(1, &_output_texture);
-	glBindTexture(GL_TEXTURE_2D, _output_texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
-	glBindImageTexture(0, _output_texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+    const char *shader_code_cstr = shader_code.c_str();
+	// printWithLineNumbers(shader_code_cstr);
+    
+	glShaderSource(_shader_id, 1, &shader_code_cstr, NULL);
+	glCompileShader(_shader_id);
 
-	glGenTextures(1, &_accumulation_texture);
-    glBindTexture(GL_TEXTURE_2D, _accumulation_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, WIDTH, HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
-    glBindImageTexture(1, _accumulation_texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+	this->checkCompileErrors();
 }
 
+bool    Shader::hasChanged()
+{
+    for (auto &file : _files_timestamps)
+    {
+        if (std::filesystem::last_write_time(file.first) != file.second)
+        {
+            _files_timestamps[file.first] = std::filesystem::last_write_time(file.first);
+            return (true);
+        }
+    }
+    return (false);
+}
 
-void Shader::checkCompileErrors(GLuint shader)
+void Shader::reload()
+{
+	glDeleteShader(_shader_id);
+	this->compile();
+}
+
+void Shader::checkCompileErrors()
 {
 	GLint success;
 	GLchar infoLog[512];
 	
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+	glGetShaderiv(_shader_id, GL_COMPILE_STATUS, &success);
 	if (!success)
 	{
-		glGetShaderInfoLog(shader, 512, NULL, infoLog);
+		glGetShaderInfoLog(_shader_id, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::COMPILATION_FAILED\n" << infoLog << std::endl;
 	}
 }
 
-void Shader::setupVertexBuffer(const Vertex* vertices, size_t size)
+void    Shader::setDefine(const std::string &name, const std::string &value)
 {
-    glGenVertexArrays(1, &_screen_VAO);
-    glGenBuffers(1, &_screen_VBO);
-    
-    glBindVertexArray(_screen_VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, _screen_VBO);
-    glBufferData(GL_ARRAY_BUFFER, size * 3 * sizeof(Vertex), vertices, GL_STATIC_DRAW);
-
-    // Position attribute
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // Texture coordinate attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
-    glEnableVertexAttribArray(1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    _defines[name] = value;
 }
 
-void	Shader::drawTriangles(size_t size)
+GLuint	Shader::getShader(void) const
 {
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, _output_texture);
-	glUniform1i(glGetUniformLocation(_program, "screenTexture"), 0);
-	
-	glBindVertexArray(_screen_VAO);
-	glDrawArrays(GL_TRIANGLES, 0, size * 3);
+	return (_shader_id);
 }
 
-void	Shader::set_int(const std::string &name, int value) const
+const std::string	&Shader::getFilePath(void) const
 {
-	glUniform1i(glGetUniformLocation(_program_compute, name.c_str()), value);
-}
-void	Shader::set_float(const std::string &name, float value) const
-{
-	glUniform1f(glGetUniformLocation(_program_compute, name.c_str()), value);
-}
-void	Shader::set_vec2(const std::string &name, const glm::vec2 &value) const
-{
-	glUniform2fv(glGetUniformLocation(_program_compute, name.c_str()), 1, glm::value_ptr(value));
-}
-void	Shader::set_vec3(const std::string &name, const glm::vec3 &value) const
-{
-	glUniform3fv(glGetUniformLocation(_program_compute, name.c_str()), 1, glm::value_ptr(value));
-}
-void	Shader::set_mat4(const std::string &name, const glm::mat4 &value) const
-{
-	glUniformMatrix4fv(glGetUniformLocation(_program_compute, name.c_str()), 1, GL_FALSE, glm::value_ptr(value));
-}
-
-GLuint	Shader::getProgram(void) const
-{
-	return (_program);
-}
-
-GLuint	Shader::getProgramCompute(void) const
-{
-	return (_program_compute);
+    return (_file_path);
 }

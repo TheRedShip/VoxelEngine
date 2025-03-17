@@ -6,24 +6,32 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/27 14:51:49 by TheRed            #+#    #+#             */
-/*   Updated: 2024/12/23 18:38:38 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/17 12:10:31 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "RT.hpp"
 
+void					setupScreenTriangle(GLuint *VAO);
+void					drawScreenTriangle(GLuint VAO, GLuint output_texture, GLuint program);
+
+std::vector<GLuint>		generateTextures(unsigned int textures_count);
+
+std::vector<Buffer *>	createDataOnGPU(Scene &scene);
+void					updateDataOnGPU(Scene &scene, std::vector<Buffer *> buffers);
+
 int main(int argc, char **argv)
 {
-	Scene		scene;
-
+	(void) argc;
+	(void) argv;
+	
+	std::string args = "";
+	Scene		scene(args);
+	
 	Window		window(&scene, WIDTH, HEIGHT, "RT_GPU", 0);
-	Shader		shader("shaders/vertex.vert", "shaders/frag.frag", "shaders/compute.glsl");
 
-	shader.attach();
-
-	Vertex vertices[3] = {{{-1.0f, -1.0f}, {0.0f, 0.0f}},{{3.0f, -1.0f}, {2.0f, 0.0f}},{{-1.0f, 3.0f}, {0.0f, 2.0f}}};
-	size_t size = sizeof(vertices) / sizeof(Vertex) / 3;
-	shader.setupVertexBuffer(vertices, size);
+	GLuint VAO;
+	setupScreenTriangle(&VAO);
 
 	const int dim = 128;
 	std::vector<unsigned char> voxelData(dim * dim * dim * 4, 0);  // 4 channels per voxel
@@ -40,7 +48,7 @@ int main(int argc, char **argv)
 				int indexData = 4 * (x + dim * (y + dim * z));
 				int indexNormals = 3 * (x + dim * (y + dim * z));
 				if (std::sqrt(dx * dx + dy * dy + dz * dz) < 16.0 / 2.0f) {
-					voxelData[indexData + 0] = 150 + (float(rand()) / RAND_MAX) * 10; // Red
+					voxelData[indexData + 0] = 150 + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 10; // Red
 					voxelData[indexData + 1] = 0;   // Green
 					voxelData[indexData + 2] = 0;   // Blue
 					voxelData[indexData + 3] = 255; // Alpha (non-zero means solid)
@@ -52,7 +60,7 @@ int main(int argc, char **argv)
 				if (y == 0)
 				{
 					voxelData[indexData + 0] = 0; // Red
-					voxelData[indexData + 1] = 150 + (float(rand()) / RAND_MAX)  * 10;
+					voxelData[indexData + 1] = 150 + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 10;
 					voxelData[indexData + 2] = 0;   // Blue
 					voxelData[indexData + 3] = 255; // Alpha (non-zero means solid)
 
@@ -68,7 +76,7 @@ int main(int argc, char **argv)
 	// Create and upload the 3D texture at texture unit index 2
 	GLuint voxelTex;
 	glGenTextures(1, &voxelTex);
-	glActiveTexture(GL_TEXTURE2);  // Bind to texture unit 2
+	glActiveTexture(GL_TEXTURE1);  // Bind to texture unit 2
 	glBindTexture(GL_TEXTURE_3D, voxelTex);
 	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, dim, dim, dim, 0, GL_RGBA, GL_UNSIGNED_BYTE, voxelData.data());
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -80,7 +88,7 @@ int main(int argc, char **argv)
 	// Create and upload the 3D texture at texture unit index 2
 	GLuint voxelNormalTex;
 	glGenTextures(1, &voxelNormalTex);
-	glActiveTexture(GL_TEXTURE3);  // Bind to texture unit 2
+	glActiveTexture(GL_TEXTURE2);  // Bind to texture unit 2
 	glBindTexture(GL_TEXTURE_3D, voxelNormalTex);
 	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB16F, dim, dim, dim, 0, GL_RGB, GL_FLOAT, voxelNormals.data());
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -89,29 +97,55 @@ int main(int argc, char **argv)
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
+	std::vector<GLuint> textures = generateTextures(1);
+	
+	ShaderProgram raytracing_program;
+	Shader compute = Shader(GL_COMPUTE_SHADER, "shaders/compute.glsl");
+
+	raytracing_program.attachShader(&compute);
+	raytracing_program.link();
+
+	ShaderProgram render_program;
+	Shader vertex = Shader(GL_VERTEX_SHADER, "shaders/vertex.vert");
+	Shader frag = Shader(GL_FRAGMENT_SHADER, "shaders/frag.frag");
+	render_program.attachShader(&vertex);
+	render_program.attachShader(&frag);
+	render_program.link();
+
+	std::vector<Buffer *> buffers = createDataOnGPU(scene);
+
 	while (!window.shouldClose())
 	{
-		glUseProgram(shader.getProgramCompute());
-
-		shader.set_int("u_frameCount", window.getFrameCount());
-		shader.set_float("u_time", (float)(glfwGetTime()));
-		shader.set_vec2("u_resolution", glm::vec2(WIDTH, HEIGHT));
-		shader.set_vec3("u_cameraPosition", scene.getCamera()->getPosition());
-		shader.set_mat4("u_viewMatrix", scene.getCamera()->getViewMatrix());
+		window.updateDeltaTime();
 		
-		glDispatchCompute((WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1);
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		updateDataOnGPU(scene, buffers);
 		
 		glClear(GL_COLOR_BUFFER_BIT);
-
-		glUseProgram(shader.getProgram());
-		shader.drawTriangles(size);
-
-		std::cout << "\rFrame: " << window.getFrameCount() << " Fps: " << int(window.getFps()) << "                        " << std::flush;
 		
+		raytracing_program.use();
+		raytracing_program.set_int("u_frameCount", window.getFrameCount());
+		raytracing_program.set_float("u_time", (float)(glfwGetTime()));
+		raytracing_program.set_vec2("u_resolution", glm::vec2(WIDTH, HEIGHT));
+		
+		raytracing_program.dispathCompute((WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1);
+
+		window.imGuiNewFrame();
+
+		render_program.use();
+		drawScreenTriangle(VAO, textures[window.getOutputTexture()], render_program.getProgram());
+
+		window.imGuiRender();
+
 		window.display();
-		window.pollEvents();		
+		window.pollEvents();
+
+		// glClearTexImage(textures[3], 0, GL_RGBA, GL_FLOAT, nullptr);
+		// glClearTexImage(textures[4], 0, GL_RGBA, GL_FLOAT, nullptr);
 	}
-	
+
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+
 	return (0);
 }

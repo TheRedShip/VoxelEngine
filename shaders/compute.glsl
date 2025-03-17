@@ -1,16 +1,30 @@
-#version 430 core
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(binding = 0, rgba32f) uniform image2D output_image;
-layout(binding = 1, rgba32f) uniform image2D accumulation_image;
-layout(binding = 2) uniform sampler3D u_voxelData;
-layout(binding = 3) uniform sampler3D u_voxelNormals;
+layout(binding = 1) uniform sampler3D u_voxelData;
+layout(binding = 2) uniform sampler3D u_voxelNormals;
 
 uniform vec2    u_resolution;
-uniform vec3    u_cameraPosition;
-uniform mat4    u_viewMatrix;
 uniform int		u_frameCount;
 uniform float	u_time;
+
+
+struct GPUCamera
+{
+	mat4	view_matrix;
+    vec3	position;
+	
+	float	aperture_size;
+	float	focus_distance;
+	float	fov;
+
+	int		bounce;
+};
+
+layout(std140, binding = 0) uniform CameraData
+{
+    GPUCamera camera;
+};
 
 struct Ray {
 	vec3 origin;
@@ -23,6 +37,8 @@ struct hitInfo
 	vec3 normal;
 	vec4 color;
 };
+
+#include "shaders/random.glsl"
 
 bool voxelRayMarch(Ray ray, out hitInfo hit)
 {
@@ -57,7 +73,6 @@ bool voxelRayMarch(Ray ray, out hitInfo hit)
 		if (ipos.x < 0 || ipos.y < 0 || ipos.z < 0 || ipos.x >= 128 || ipos.y >= 128 || ipos.z >= 128)
 			return (false);
 
-		// Convert integer voxel coordinate to texture lookup coordinate
 		vec3 texCoords = (vec3(ipos) + 0.5) / voxelDim;
 		vec4 voxelColor = texture(u_voxelData, texCoords);
 		vec3 voxelNormal = texture(u_voxelNormals, texCoords).rgb;
@@ -93,24 +108,45 @@ bool voxelRayMarch(Ray ray, out hitInfo hit)
 	return (false);
 }
 
+Ray initRay(vec2 uv, inout uint rng_state)
+{
+	float focal_length = 1.0 / tan(radians(camera.fov) / 2.0);
+	
+	vec3 origin = camera.position;
+	vec3 view_space_ray = normalize(vec3(uv.x, uv.y, -focal_length));
+	vec3 ray_direction = normalize((inverse(camera.view_matrix) * vec4(view_space_ray, 0.0)).xyz);
+	
+	vec3 right = vec3(camera.view_matrix[0][0], camera.view_matrix[1][0], camera.view_matrix[2][0]);
+	vec3 up = vec3(camera.view_matrix[0][1], camera.view_matrix[1][1], camera.view_matrix[2][1]);
+
+	vec3 focal_point = origin + ray_direction * camera.focus_distance;
+
+	float r = sqrt(randomValue(rng_state));
+	float theta = 2.0 * M_PI * randomValue(rng_state);
+	vec2 lens_point = camera.aperture_size * r * vec2(cos(theta), sin(theta));
+
+	origin += right * lens_point.x + up * lens_point.y;
+	ray_direction = normalize(focal_point - origin);
+
+	return (Ray(origin, ray_direction));
+}
+
 void main()
 {
 	ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
 	if (pixel_coords.x >= int(u_resolution.x) || pixel_coords.y >= int(u_resolution.y))
 		return;
 
-	// Compute normalized device coordinates
-	vec2 uv = (vec2(pixel_coords) / u_resolution) * 2.0 - 1.0;
-	uv.x *= (u_resolution.x / u_resolution.y);
+	uint rng_state = uint(u_resolution.x) * uint(pixel_coords.y) + uint(pixel_coords.x);
+	rng_state = rng_state + u_frameCount * 719393;
 
-	// Build a perspective ray in view space.
-	float fov = 90.0;
-	float focal_length = 1.0 / tan(radians(fov) / 2.0);
-	vec3 view_space_ray = normalize(vec3(uv.x, uv.y, -focal_length));
+	vec2 jitter = randomPointInCircle(rng_state) * 1;
 
-	Ray ray;
-	ray.origin    = u_cameraPosition;
-	ray.direction = normalize((inverse(u_viewMatrix) * vec4(view_space_ray, 0.0)).xyz);
+	vec2 uv = ((vec2(pixel_coords) + jitter) / u_resolution) * 2.0 - 1.0;
+	uv.x *= u_resolution.x / u_resolution.y;
+
+	Ray ray = initRay(uv, rng_state);
+
 
 	vec3 light_dir = normalize(vec3(sin(u_time), -1.0, 0.));
 	

@@ -6,17 +6,26 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 16:16:24 by TheRed            #+#    #+#             */
-/*   Updated: 2024/12/23 18:39:37 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/17 12:03:34 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Window.hpp"
 
+void GLFWErrorCallback(int error, const char* description)
+{
+    fprintf(stderr, "GLFW Error (%d): %s\n", error, description);
+}
+
 Window::Window(Scene *scene, int width, int height, const char *title, int sleep)
 {
 	_scene = scene;
+	_fps = 0;
 	_frameCount = 0;
-	
+	_pixelisation = 0;
+	_output_texture = 0;
+
+	glfwSetErrorCallback(GLFWErrorCallback);
 	if (!glfwInit())
 	{
 		fprintf( stderr, "Failed to initialize GLFW\n" );
@@ -44,19 +53,23 @@ Window::Window(Scene *scene, int width, int height, const char *title, int sleep
 
 	gladLoadGL(glfwGetProcAddress);
 	glfwSwapInterval(sleep);
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO &io = ImGui::GetIO(); (void)io;
+	ImGui::StyleColorsDark();
+	ImGui_ImplGlfw_InitForOpenGL(_window, true);
+	ImGui_ImplOpenGL3_Init("#version 430");
 }
 
 Window::~Window(void)
 {
-	delete _scene;
-
 	glfwTerminate();
 }
 
 
 void Window::process_input()
 {
-
 	bool forward = glfwGetKey(_window, GLFW_KEY_W) == GLFW_PRESS;
 	bool backward = glfwGetKey(_window, GLFW_KEY_S) == GLFW_PRESS;
 	bool left = glfwGetKey(_window, GLFW_KEY_A) == GLFW_PRESS;
@@ -101,18 +114,31 @@ void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int
     Window* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
     (void) win; (void) button; (void) mods;
 	
-    if (action == GLFW_PRESS)
-	{
-
-    }
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
+		win->_frameCount = 0;
 }
 void Window::keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
     Window* win = static_cast<Window*>(glfwGetWindowUserPointer(window));
     (void) win; (void) key; (void) scancode; (void) action; (void) mods;
+	
+	if (key == 67 && action == GLFW_PRESS)
+	{
+		glm::vec3 pos = win->_scene->getCamera()->getPosition();
+		glm::vec2 dir = win->_scene->getCamera()->getDirection();
+		float aperture = win->_scene->getCamera()->getAperture();
+		float focus = win->_scene->getCamera()->getFocus();
+		float fov = win->_scene->getCamera()->getFov();
+		int	bounce = win->_scene->getCamera()->getBounce();
+
+		std::cout << "\nCAM\t" << pos.x << " " << pos.y << " " << pos.z << "\t"
+				<< dir.x << " " << dir.y << " " << "\t"
+				<< aperture << " " << focus << " " << fov << "\t" << bounce
+				<< std::endl;
+	}
 }
 
-void Window::display()
+void Window::updateDeltaTime()
 {
 	static double	lastTime = glfwGetTime();
 	double			currentTime = glfwGetTime();
@@ -121,11 +147,19 @@ void Window::display()
 
 	lastTime = currentTime;
 	_fps = 1.0f / _delta;
+}
 
-	_frameCount++;
+void Window::display()
+{
+	if (accumulate)
+		_frameCount++;
+
+	if (_scene->getCamera()->getVelocity() > 0.0f)
+		_frameCount = 0;
 
     glfwSwapBuffers(_window);
 }
+
 void Window::pollEvents()
 {
 	this->process_input();
@@ -133,9 +167,95 @@ void Window::pollEvents()
 	
     glfwPollEvents();
 }
+
 bool Window::shouldClose()
 {
     return glfwWindowShouldClose(_window);
+}
+
+void Window::imGuiNewFrame()
+{
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+}
+
+void Window::imGuiRender()
+{
+	bool has_changed = false;
+	
+	ImGui::Begin("Settings");
+
+	ImGui::Text("Fps: %d", int(_fps));
+	ImGui::Text("Frame: %d", _frameCount);
+	ImGui::SliderInt("Output texture", &_output_texture, 0, 7);
+	
+	ImGui::Spacing();
+
+	if (ImGui::CollapsingHeader("Camera"))
+	{
+
+		if (ImGui::Checkbox("Accumulate", &accumulate))
+			_frameCount = 0;
+
+		has_changed |= ImGui::SliderInt("Bounce", &_scene->getCamera()->getBounce(), 0, 20);
+		has_changed |= ImGui::SliderFloat("FOV", &_scene->getCamera()->getFov(), 1.0f, 180.0f);
+		has_changed |= ImGui::SliderFloat("Aperture", &_scene->getCamera()->getAperture(), 0.0f, 1.0f);
+		has_changed |= ImGui::SliderFloat("Focus", &_scene->getCamera()->getFocus(), 0.0f, 150.0f);
+	}
+
+
+	if (ImGui::CollapsingHeader("Material"))
+	{
+
+		ImGui::BeginChild("Header", ImVec2(0, 400), true, 0);
+
+		for (unsigned int i = 0; i < _scene->getMaterialData().size(); i++)
+		{
+			GPUMaterial &mat = _scene->getMaterialData()[i];
+
+			ImGui::PushID(i);
+			
+			ImGui::Text("Material %d", i);
+			has_changed |= ImGui::ColorEdit3("Color", &mat.color[0]);
+			has_changed |= ImGui::SliderFloat("Emission", &mat.emission, 0.0f, 10.0f);
+			
+			if (mat.type == 0)
+			{
+				has_changed |= ImGui::SliderFloat("Roughness", &mat.roughness, 0.0f, 1.0f);
+				has_changed |= ImGui::SliderFloat("Metallic", &mat.metallic, 0.0f, 1.0f);
+			}
+			else if (mat.type == 1)
+				has_changed |= ImGui::SliderFloat("Refraction", &mat.refraction, 1.0f, 5.0f);
+			else if (mat.type == 2)
+			{
+				has_changed |= ImGui::SliderFloat("Transparency", &mat.roughness, 0.0f, 1.0f);
+				has_changed |= ImGui::SliderFloat("Refraction", &mat.refraction, 1.0f, 2.0f);
+				has_changed |= ImGui::SliderFloat("Proba", &mat.metallic, 0., 1.);
+			}
+			else if (mat.type == 3)
+			{
+				has_changed |= ImGui::SliderFloat("Checker Scale", &mat.refraction, 0.0f, 40.0f);
+				has_changed |= ImGui::SliderFloat("Roughness", &mat.roughness, 0.0f, 1.0f);
+				has_changed |= ImGui::SliderFloat("Metallic", &mat.metallic, 0.0f, 1.0f);
+			}
+			has_changed |= ImGui::SliderInt("Type", &mat.type, 0, 3);
+
+			ImGui::PopID();
+
+			ImGui::Separator();
+		}
+		ImGui::EndChild();
+
+	}
+
+	ImGui::End();
+
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+	if (has_changed)
+		_frameCount = (accumulate == 0) - 1;
 }
 
 GLFWwindow	*Window::getWindow(void) const
@@ -151,4 +271,19 @@ float		Window::getFps(void) const
 int			Window::getFrameCount(void) const
 {
 	return (_frameCount);
+}
+
+void		Window::setFrameCount(int nb)
+{
+	_frameCount = nb;
+}
+
+bool		&Window::getAccumulate(void)
+{
+	return (accumulate);
+}
+
+int			Window::getOutputTexture(void) const
+{
+	return (_output_texture);
 }

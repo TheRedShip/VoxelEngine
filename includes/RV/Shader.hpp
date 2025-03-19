@@ -13,7 +13,7 @@
 #ifndef RT_SHADER__HPP
 # define RT_SHADER__HPP
 
-# include "RT.hpp"
+# include "RV.hpp"
 
 class Shader
 {

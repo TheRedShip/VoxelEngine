@@ -10,7 +10,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "RT.hpp"
+#include "RV.hpp"
 
 void				setupScreenTriangle(GLuint *VAO)
 {

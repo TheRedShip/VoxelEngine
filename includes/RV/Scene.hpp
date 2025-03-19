@@ -13,7 +13,7 @@
 #ifndef RT_SCENE__HPP
 # define RT_SCENE__HPP
 
-# include "RT.hpp"
+# include "RV.hpp"
 
 struct GPUMaterial
 {

@@ -53,12 +53,13 @@ vec3 getGradientNormal(ivec3 pos)
 				vec3 texCoords = (vec3(pos) + offset + 0.5) / u_voxelDim;
 				vec4 voxelColor = texture(u_voxelData, texCoords);
 				
-				normal += offset * voxelColor.a;
+				if (voxelColor.a == 0)
+					normal += offset;
 			}
 		}
 	}
 
-    return normalize(-normal);
+    return normalize(normal);
 }
 
 

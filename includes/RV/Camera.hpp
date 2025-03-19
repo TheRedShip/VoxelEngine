@@ -13,7 +13,7 @@
 #ifndef RT_CAMERA__HPP
 # define RT_CAMERA__HPP
 
-# include "RT.hpp"
+# include "RV.hpp"
 
 struct GPUCamera
 {

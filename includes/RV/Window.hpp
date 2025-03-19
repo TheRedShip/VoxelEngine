@@ -13,7 +13,7 @@
 #ifndef RT_WINDOW__HPP
 # define RT_WINDOW__HPP
 
-# include "RT.hpp"
+# include "RV.hpp"
 
 class Scene;
 class ShaderProgram;

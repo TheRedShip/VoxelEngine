@@ -13,7 +13,7 @@
 #ifndef SHADERPROGRAM_HPP
 # define SHADERPROGRAM_HPP
 
-# include "RT.hpp"
+# include "RV.hpp"
 
 class Shader;
 

@@ -27,18 +27,22 @@ Scene::~Scene()
 
 struct Voxel
 {
-	uint8_t r, g, b, a;
+	bool active;
+	uint8_t paletteIndex;
 };
 
 struct VoxChunk
 {
 	int width, height, depth;
+    int offset_x, offset_y, offset_z;
 	std::vector<std::vector<std::vector<Voxel>>> voxels;
 };
 
 struct VoxModel
 {
 	int width, height, depth;
+	bool hasPalette;
+	uint32_t palette[256];
 	std::vector<VoxChunk> chunks;
 };
 
@@ -59,8 +63,16 @@ bool parseVoxFile(const std::string& filename, VoxModel& model)
 	
 	uint32_t version;
 	file.read(reinterpret_cast<char*>(&version), 4);
-	
 
+	bool has_palette = false;
+	
+	for (int i = 0; i < 256; ++i)
+	{
+		uint8_t r, g, b, a;
+		r = i; g = i; b = i; a = 255;
+		model.palette[i] = (r << 24) | (g << 16) | (b << 8) | a;
+	}
+	
 	while (file) {
 		char chunkId[4];
 		file.read(chunkId, 4);
@@ -70,8 +82,6 @@ bool parseVoxFile(const std::string& filename, VoxModel& model)
 		file.read(reinterpret_cast<char*>(&childChunks), 4);
 		
 		std::string chunk(chunkId, 4);
-		
-		std::cout << "Chunk " << chunk << " " << chunkSize << " " << childChunks << std::endl;
 
 		if (chunk == "SIZE")
 		{
@@ -80,8 +90,8 @@ bool parseVoxFile(const std::string& filename, VoxModel& model)
 			VoxChunk &chunk = model.chunks.back();
 			
 			file.read(reinterpret_cast<char*>(&chunk.width), 4);
-			file.read(reinterpret_cast<char*>(&chunk.height), 4);
 			file.read(reinterpret_cast<char*>(&chunk.depth), 4);
+			file.read(reinterpret_cast<char*>(&chunk.height), 4);
 			chunk.voxels.resize(chunk.depth, std::vector<std::vector<Voxel>>(chunk.height, std::vector<Voxel>(chunk.width)));
 		}
 		else if (chunk == "XYZI") {
@@ -93,11 +103,12 @@ bool parseVoxFile(const std::string& filename, VoxModel& model)
 			for (uint32_t i = 0; i < numVoxels; ++i) {
 				uint8_t x, y, z, colorIndex;
 				file.read(reinterpret_cast<char*>(&x), 1);
-				file.read(reinterpret_cast<char*>(&y), 1);
 				file.read(reinterpret_cast<char*>(&z), 1);
+				file.read(reinterpret_cast<char*>(&y), 1);
 				file.read(reinterpret_cast<char*>(&colorIndex), 1);
 				
-				chunk.voxels[z][y][x] = {colorIndex, colorIndex, colorIndex, 255};
+				chunk.voxels[z][y][x].active = true;
+				chunk.voxels[z][y][x].paletteIndex = colorIndex;
 			}
 		}
 		else if (chunk == "nTRN")
@@ -107,6 +118,18 @@ bool parseVoxFile(const std::string& filename, VoxModel& model)
 			
 			uint32_t dictSize;
 			file.read(reinterpret_cast<char*>(&dictSize), 4);
+
+			for (uint32_t i = 0; i < dictSize; i++)
+			{
+				//just skip dont read
+				uint32_t keySize;
+				file.read(reinterpret_cast<char*>(&keySize), 4);
+				file.seekg(keySize, std::ios::cur);
+
+				uint32_t valueSize;
+				file.read(reinterpret_cast<char*>(&valueSize), 4);
+				file.seekg(valueSize, std::ios::cur);
+			}
 
 			uint32_t childID;
 			file.read(reinterpret_cast<char*>(&childID), 4);
@@ -119,21 +142,96 @@ bool parseVoxFile(const std::string& filename, VoxModel& model)
 
 			uint32_t numFrames;
 			file.read(reinterpret_cast<char*>(&numFrames), 4);
+
+			std::cout << "Node ID: " << nodeID << " dictSize " << dictSize  << " Child ID: " << childID << " Reserved " << reserved << " Layer ID: " << layerID << " Num Frames: " << numFrames << std::endl;
+
+			for (uint32_t i = 0; i < numFrames; i++)
+            {
+                // dict frame attributes
+
+                uint32_t dictFrameSize;
+                file.read(reinterpret_cast<char*>(&dictFrameSize), 4);
+
+                for (uint32_t j = 0; j < dictFrameSize; j++)
+                {
+                    uint32_t keySize;
+                    file.read(reinterpret_cast<char*>(&keySize), 4);
+
+                    std::string key;
+                    key.resize(keySize);
+                    file.read(key.data(), keySize);
+
+                    uint32_t valueSize;
+                    file.read(reinterpret_cast<char*>(&valueSize), 4);
+
+                    std::string value;
+                    value.resize(valueSize);
+                    file.read(value.data(), valueSize);
+
+                    if (key == "_t")
+                    {
+                        VoxChunk &chunk = model.chunks[(nodeID / 2) - 1];
+                        
+                        std::stringstream values(value);
+                        values >> chunk.offset_x >> chunk.offset_z >> chunk.offset_y;
+                    }
+                    else if (key == "_r")
+                        file.seekg(sizeof(uint8_t), std::ios::cur);
+                    else if (key == "_f")
+                        file.seekg(sizeof(uint32_t), std::ios::cur);
+                }
+
+            } 
+		}
+		else if (chunk == "RGBA")
+		{
+			if (has_palette)
+			{
+				file.seekg(chunkSize, std::ios::cur);
+				continue;
+			}
+			
+			has_palette = true;
+
+			for (uint32_t i = 0; i < 256; ++i)
+			{
+				uint8_t r, g, b, a;
+				file.read(reinterpret_cast<char*>(&r), 1);
+				file.read(reinterpret_cast<char*>(&g), 1);
+				file.read(reinterpret_cast<char*>(&b), 1);
+				file.read(reinterpret_cast<char*>(&a), 1);
+
+				a = 255;
+				std::cout << "Color " << i << ": " << (int)r << " " << (int)g << " " << (int)b << " " << (int)a << std::endl;
+				
+				model.palette[i] = (r << 24) | (g << 16) | (b << 8) | a;
+			}
 		}
 		else
 			file.seekg(chunkSize, std::ios::cur);
 	}
 	
-	model.width = 0;
-	model.height = 0;
-	model.depth = 0;
-	
+	int minX = std::numeric_limits<int>::max();
+	int minY = std::numeric_limits<int>::max();
+	int minZ = std::numeric_limits<int>::max();
+	int maxX = std::numeric_limits<int>::min();
+	int maxY = std::numeric_limits<int>::min();
+	int maxZ = std::numeric_limits<int>::min();
+
 	for (VoxChunk &chunk : model.chunks)
 	{
-		model.width = std::max(model.width, chunk.width);
-		model.height = std::max(model.height, chunk.height);
-		model.depth = std::max(model.depth, chunk.depth);
+		minX = std::min(minX, chunk.offset_x);
+		minY = std::min(minY, chunk.offset_y);
+		minZ = std::min(minZ, chunk.offset_z);
+		
+		maxX = std::max(maxX, chunk.offset_x + chunk.width);
+		maxY = std::max(maxY, chunk.offset_y + chunk.height);
+		maxZ = std::max(maxZ, chunk.offset_z + chunk.depth);
 	}
+
+	model.width  = maxX - minX;
+	model.height = maxY - minY;
+	model.depth  = maxZ - minZ;
 	
 	return true;
 }
@@ -151,30 +249,61 @@ void Scene::parseScene(std::string &name)
 		VoxModel model;
 		if (parseVoxFile(name, model))
 		{
-			glm::ivec3 offset = glm::ivec3(0.);
-			for (VoxChunk &chunk : model.chunks)
+			std::cout << "Vox model parsed successfully" << std::endl;
+			std::cout << "Model size: " << model.width << "x" << model.height << "x" << model.depth << std::endl;
+            for (VoxChunk &chunk : model.chunks)
 			{
-				std::cout << "New voxel chunk " << chunk.width << "x" << chunk.height << "x" << chunk.depth << std::endl;
-				
-				for (int z = 0; z < chunk.depth; ++z)
+                std::cout << "New voxel chunk " << chunk.width << "x" << chunk.height << "x" << chunk.depth << std::endl;
+                std::cout << "Offset " << chunk.offset_x << " " << chunk.offset_y << " " << chunk.offset_z << std::endl;
+
+                glm::ivec3 offset = glm::ivec3(VOXEL_DIM / 2) + glm::ivec3(chunk.offset_x, chunk.offset_y, chunk.offset_z);
+                
+                for (int z = 0; z < chunk.depth; ++z)
 				{
 					for (int y = 0; y < chunk.height; ++y)
 					{
 						for (int x = 0; x < chunk.width; ++x)
 						{
+                            if (x >= VOXEL_DIM || x < 0 || y >= VOXEL_DIM || y < 0 || z >= VOXEL_DIM || z < 0)
+                            {
+                                std::cout << "Voxel: " << x << " " << y << " " << z << " is out of bounds" << std::endl;
+                                continue;
+                            }
 							int index_data = 4 * ((x + offset.x) + VOXEL_DIM * ((y + offset.y) + VOXEL_DIM * (z + offset.z)));						
 							
 							Voxel voxel = chunk.voxels[z][y][x];
-							voxelData[index_data + 0] = voxel.r;
-							voxelData[index_data + 1] = voxel.g;
-							voxelData[index_data + 2] = voxel.b;
-							voxelData[index_data + 3] = voxel.a;
+							if (voxel.active)
+							{
+								uint32_t color = model.palette[voxel.paletteIndex];
+								voxelData[index_data + 0] = (color >> 24) & 0xFF;
+								voxelData[index_data + 1] = (color >> 16) & 0xFF;
+								voxelData[index_data + 2] = (color >> 8) & 0xFF;
+								voxelData[index_data + 3] = color & 0xFF;
+							}
 						}
 					}
 				}
 			}
 		}
 	}
+
+    for (int z = 0; z < VOXEL_DIM; ++z)
+    {
+        for (int y = 0; y < VOXEL_DIM; ++y)
+        {
+            for (int x = 0; x < VOXEL_DIM; ++x)
+            {
+                if (y == 0)
+                {
+                    int index_data = 4 * (x + VOXEL_DIM * (y + VOXEL_DIM * z));
+                    voxelData[index_data + 0] = 0;
+                    voxelData[index_data + 1] = 100 + rand() % 25;
+                    voxelData[index_data + 2] = 0;
+                    voxelData[index_data + 3] = 255;
+                }
+            }
+        }
+    }
 	
 	// Create and upload the 3D texture at texture unit index 2
 	GLuint voxelTex;

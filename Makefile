@@ -12,8 +12,8 @@ ifeq ($(OS),Windows_NT)
 	RM          :=	del /S /Q
 	DIR_DUP     =	if not exist "$(@D)" mkdir "$(@D)"
 	CC          :=	g++ -O3
-	IFLAGS	    :=	-I./includes -I./includes/RT -I./includes/imgui -I"D:/ffmpeg/include"
-	LDFLAGS     :=   -L./lib -L"D:/ffmpeg/lib" -lglfw3 -lopengl32 -lgdi32 -lcglm -lavformat -lavcodec -lavutil -lswscale -lswresample
+	IFLAGS	    :=	-I./includes -I./includes/RV -I./includes/imgui
+	LDFLAGS     :=   -L./lib -L"D:/ffmpeg/lib" -lglfw3 -lopengl32 -lgdi32 -lcglm
 else
 	BLACK		=	\033[30;49;3m
 	RED			=	\033[31;49;3m
@@ -29,13 +29,13 @@ else
 	DIR_DUP     =	mkdir -p $(@D)
 	CC          :=	clang++
 	CFLAGS      :=	-Wall -Wextra -Werror -g -O3 -std=c++20
-	IFLAGS	    :=	-I./includes -I./includes/RT -I./includes/imgui 
-	LDFLAGS		+=  -lglfw -lGL -lGLU -lX11 -lpthread -ldl -lavformat -lavcodec -lavutil -lswscale -lswresample
+	IFLAGS	    :=	-I./includes -I./includes/RV -I./includes/imgui 
+	LDFLAGS		+=  -lglfw -lGL -lGLU -lX11 -lpthread -ldl
 	FILE		=	$(shell ls -lR srcs/ | grep -F .c | wc -l)
 	CMP			=	1
 endif
 
-NAME        :=	RT
+NAME        :=	RedVox
 SRCS_DIR	:=	srcs
 OBJS_DIR	:=	.objs
 
@@ -47,7 +47,7 @@ IMGUI_SRCS := imgui/imgui.cpp         \
               imgui/imgui_impl_opengl3.cpp
 
 ALL_SRCS	:=	$(IMGUI_SRCS)	gl.cpp		\
-				RT.cpp	RT_utils.cpp		\
+				RV.cpp	RV_utils.cpp		\
 				class/Window.cpp			\
 				class/ShaderProgram.cpp		\
 				class/Shader.cpp			\
@@ -56,7 +56,7 @@ ALL_SRCS	:=	$(IMGUI_SRCS)	gl.cpp		\
 
 SRCS		:=	$(ALL_SRCS:%=$(SRCS_DIR)/%)
 OBJS		:=	$(addprefix $(OBJS_DIR)/, $(SRCS:%.cpp=%.o))
-HEADERS		:=	includes/RT.hpp
+HEADERS		:=	includes/RV.hpp
 MAKEFLAGS   += --no-print-directory
 
 all: $(NAME)

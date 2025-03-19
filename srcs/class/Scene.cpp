@@ -6,7 +6,7 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/23 18:29:41 by ycontre           #+#    #+#             */
-/*   Updated: 2025/03/17 12:22:41 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/19 17:17:44 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,67 +25,117 @@ Scene::~Scene()
 	delete (_camera);
 }
 
-struct Voxel {
-    uint8_t r, g, b, a;
+struct Voxel
+{
+	uint8_t r, g, b, a;
 };
 
-struct VoxModel {
-    int width, height, depth;
-    std::vector<std::vector<std::vector<Voxel>>> voxels;
+struct VoxChunk
+{
+	int width, height, depth;
+	std::vector<std::vector<std::vector<Voxel>>> voxels;
 };
 
-bool parseVoxFile(const std::string& filename, VoxModel& model) {
-    std::ifstream file(filename, std::ios::binary);
-    if (!file) {
-        std::cerr << "Failed to open file: " << filename << std::endl;
-        return false;
-    }
+struct VoxModel
+{
+	int width, height, depth;
+	std::vector<VoxChunk> chunks;
+};
 
-    char header[4];
-    file.read(header, 4);
-    if (std::strncmp(header, "VOX ", 4) != 0) {
-        std::cerr << "Invalid VOX file format." << std::endl;
-        return false;
-    }
-    
-    uint32_t version;
-    file.read(reinterpret_cast<char*>(&version), 4);
-    
-    while (file) {
-        char chunkId[4];
-        file.read(chunkId, 4);
-        
-        uint32_t chunkSize, childChunks;
-        file.read(reinterpret_cast<char*>(&chunkSize), 4);
-        file.read(reinterpret_cast<char*>(&childChunks), 4);
-        
-        std::string chunk(chunkId, 4);
-        
-        if (chunk == "SIZE") {
-            file.read(reinterpret_cast<char*>(&model.width), 4);
-            file.read(reinterpret_cast<char*>(&model.height), 4);
-            file.read(reinterpret_cast<char*>(&model.depth), 4);
-            model.voxels.resize(model.depth, std::vector<std::vector<Voxel>>(model.height, std::vector<Voxel>(model.width)));
-        }
-        else if (chunk == "XYZI") {
-            uint32_t numVoxels;
-            file.read(reinterpret_cast<char*>(&numVoxels), 4);
-            
-            for (uint32_t i = 0; i < numVoxels; ++i) {
-                uint8_t x, y, z, colorIndex;
-                file.read(reinterpret_cast<char*>(&x), 1);
-                file.read(reinterpret_cast<char*>(&y), 1);
-                file.read(reinterpret_cast<char*>(&z), 1);
-                file.read(reinterpret_cast<char*>(&colorIndex), 1);
-                
-                model.voxels[z][y][x] = {colorIndex, colorIndex, colorIndex, 255};
-            }
-        }
-        else {
-            file.seekg(chunkSize, std::ios::cur);
-        }
-    }
-    return true;
+bool parseVoxFile(const std::string& filename, VoxModel& model)
+{
+	std::ifstream file(filename, std::ios::binary);
+	if (!file) {
+		std::cerr << "Failed to open file: " << filename << std::endl;
+		return false;
+	}
+
+	char header[4];
+	file.read(header, 4);
+	if (std::strncmp(header, "VOX ", 4) != 0) {
+		std::cerr << "Invalid VOX file format." << std::endl;
+		return false;
+	}
+	
+	uint32_t version;
+	file.read(reinterpret_cast<char*>(&version), 4);
+	
+
+	while (file) {
+		char chunkId[4];
+		file.read(chunkId, 4);
+		
+		uint32_t chunkSize, childChunks;
+		file.read(reinterpret_cast<char*>(&chunkSize), 4);
+		file.read(reinterpret_cast<char*>(&childChunks), 4);
+		
+		std::string chunk(chunkId, 4);
+		
+		std::cout << "Chunk " << chunk << " " << chunkSize << " " << childChunks << std::endl;
+
+		if (chunk == "SIZE")
+		{
+			model.chunks.push_back(VoxChunk());
+			
+			VoxChunk &chunk = model.chunks.back();
+			
+			file.read(reinterpret_cast<char*>(&chunk.width), 4);
+			file.read(reinterpret_cast<char*>(&chunk.height), 4);
+			file.read(reinterpret_cast<char*>(&chunk.depth), 4);
+			chunk.voxels.resize(chunk.depth, std::vector<std::vector<Voxel>>(chunk.height, std::vector<Voxel>(chunk.width)));
+		}
+		else if (chunk == "XYZI") {
+			VoxChunk &chunk = model.chunks.back();
+
+			uint32_t numVoxels;
+			file.read(reinterpret_cast<char*>(&numVoxels), 4);
+			
+			for (uint32_t i = 0; i < numVoxels; ++i) {
+				uint8_t x, y, z, colorIndex;
+				file.read(reinterpret_cast<char*>(&x), 1);
+				file.read(reinterpret_cast<char*>(&y), 1);
+				file.read(reinterpret_cast<char*>(&z), 1);
+				file.read(reinterpret_cast<char*>(&colorIndex), 1);
+				
+				chunk.voxels[z][y][x] = {colorIndex, colorIndex, colorIndex, 255};
+			}
+		}
+		else if (chunk == "nTRN")
+		{
+			uint32_t nodeID;
+			file.read(reinterpret_cast<char*>(&nodeID), 4);
+			
+			uint32_t dictSize;
+			file.read(reinterpret_cast<char*>(&dictSize), 4);
+
+			uint32_t childID;
+			file.read(reinterpret_cast<char*>(&childID), 4);
+
+			uint32_t reserved;
+			file.read(reinterpret_cast<char*>(&reserved), 4);
+
+			uint32_t layerID;
+			file.read(reinterpret_cast<char*>(&layerID), 4);
+
+			uint32_t numFrames;
+			file.read(reinterpret_cast<char*>(&numFrames), 4);
+		}
+		else
+			file.seekg(chunkSize, std::ios::cur);
+	}
+	
+	model.width = 0;
+	model.height = 0;
+	model.depth = 0;
+	
+	for (VoxChunk &chunk : model.chunks)
+	{
+		model.width = std::max(model.width, chunk.width);
+		model.height = std::max(model.height, chunk.height);
+		model.depth = std::max(model.depth, chunk.depth);
+	}
+	
+	return true;
 }
 
 void Scene::parseScene(std::string &name)
@@ -101,23 +151,25 @@ void Scene::parseScene(std::string &name)
 		VoxModel model;
 		if (parseVoxFile(name, model))
 		{
-			std::cout << "Model size: " << model.width << "x" << model.height << "x" << model.depth << std::endl;
-			std::cout << "VOXEL_DIM: " << VOXEL_DIM << std::endl;
-
-			for (int z = 0; z < model.depth; ++z)
+			glm::ivec3 offset = glm::ivec3(0.);
+			for (VoxChunk &chunk : model.chunks)
 			{
-				for (int y = 0; y < model.height; ++y)
+				std::cout << "New voxel chunk " << chunk.width << "x" << chunk.height << "x" << chunk.depth << std::endl;
+				
+				for (int z = 0; z < chunk.depth; ++z)
 				{
-					for (int x = 0; x < model.width; ++x)
+					for (int y = 0; y < chunk.height; ++y)
 					{
-						glm::ivec3 offset = glm::ivec3(model.width / 2.0f, 0, model.depth / 2.0f);
-						int index_data = 4 * ((x + offset.x) + VOXEL_DIM * ((y + offset.y) + VOXEL_DIM * (z + offset.z)));						
-						
-						Voxel voxel = model.voxels[z][y][x];
-						voxelData[index_data + 0] = voxel.r;
-						voxelData[index_data + 1] = voxel.g;
-						voxelData[index_data + 2] = voxel.b;
-						voxelData[index_data + 3] = voxel.a;
+						for (int x = 0; x < chunk.width; ++x)
+						{
+							int index_data = 4 * ((x + offset.x) + VOXEL_DIM * ((y + offset.y) + VOXEL_DIM * (z + offset.z)));						
+							
+							Voxel voxel = chunk.voxels[z][y][x];
+							voxelData[index_data + 0] = voxel.r;
+							voxelData[index_data + 1] = voxel.g;
+							voxelData[index_data + 2] = voxel.b;
+							voxelData[index_data + 3] = voxel.a;
+						}
 					}
 				}
 			}

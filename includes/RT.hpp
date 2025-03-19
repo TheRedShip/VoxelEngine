@@ -6,7 +6,7 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/27 14:52:10 by TheRed            #+#    #+#             */
-/*   Updated: 2025/03/17 12:00:48 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/19 16:51:28 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,7 @@
 
 # define WIDTH 1920
 # define HEIGHT 1080
-# define VOXEL_DIM 256
+# define VOXEL_DIM 128
 
 #define GLM_ENABLE_EXPERIMENTAL
 

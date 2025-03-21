@@ -72,15 +72,13 @@ std::vector<Buffer *>	createDataOnGPU(Scene &scene)
 	GLint max_gpu_size;
 	glGetIntegerv(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &max_gpu_size);
 
-	const std::vector<GPUMaterial> &material_data = scene.getMaterialData();
-
-	std::cout << "Sending " << \
-				material_data.size() * sizeof(GPUMaterial) \
-				<< " / " << max_gpu_size << " bytes" << std::endl;
+	// const std::vector<GPUMaterial> &material_data = scene.getMaterialData();
+	const std::vector<GPUVoxel> &voxel_data = scene.getVoxelData();
 
 	std::vector<Buffer *> buffers;
 
-	buffers.push_back(new Buffer(Buffer::Type::SSBO, 0, sizeof(GPUMaterial) * material_data.size(), nullptr));
+	// buffers.push_back(new Buffer(Buffer::Type::SSBO, 1, sizeof(GPUMaterial) * material_data.size(), nullptr));
+	buffers.push_back(new Buffer(Buffer::Type::SSBO, 0, sizeof(GPUVoxel) * voxel_data.size(), scene.getVoxelData().data()));
 	buffers.push_back(new Buffer(Buffer::Type::UBO, 0, sizeof(GPUCamera), nullptr));
 
 	return (buffers);
@@ -88,9 +86,8 @@ std::vector<Buffer *>	createDataOnGPU(Scene &scene)
 
 void	updateDataOnGPU(Scene &scene, std::vector<Buffer *> buffers)
 {
-	const std::vector<GPUMaterial> &material_data = scene.getMaterialData();
-
-	buffers[0]->update(material_data.data(), sizeof(GPUMaterial) * material_data.size());
+	// const std::vector<GPUMaterial> &material_data = scene.getMaterialData();
+	// buffers[0]->update(material_data.data(), sizeof(GPUMaterial) * material_data.size());
 
 	GPUCamera camera_data = scene.getCamera()->getGPUData();
 	buffers[1]->update(&camera_data, sizeof(GPUCamera));

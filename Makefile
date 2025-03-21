@@ -27,7 +27,7 @@ else
 	LINE_CLR	=	\33[2K\r
 	RM          :=	rm -rf
 	DIR_DUP     =	mkdir -p $(@D)
-	CC          :=	clang++
+	CC          :=	g++ -fsanitize=address -static-libasan -g
 	CFLAGS      :=	-Wall -Wextra -Werror -g -O3 -std=c++20
 	IFLAGS	    :=	-I./includes -I./includes/RV -I./includes/imgui 
 	LDFLAGS		+=  -lglfw -lGL -lGLU -lX11 -lpthread -ldl
@@ -48,6 +48,8 @@ IMGUI_SRCS := imgui/imgui.cpp         \
 
 ALL_SRCS	:=	$(IMGUI_SRCS)	gl.cpp		\
 				RV.cpp	RV_utils.cpp		\
+				class/VoxModel.cpp			\
+				class/VoxParsing.cpp		\
 				class/Window.cpp			\
 				class/ShaderProgram.cpp		\
 				class/Shader.cpp			\

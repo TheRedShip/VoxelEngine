@@ -61,8 +61,9 @@ int main(int argc, char **argv)
 		
 		raytracing_program.use();
 		raytracing_program.set_int("u_frameCount", window.getFrameCount());
+		raytracing_program.set_int("u_voxelDim", VOXEL_DIM);
+		raytracing_program.set_float("u_voxelSize", VOXEL_SIZE);
 		raytracing_program.set_float("u_time", (float)(glfwGetTime()));
-		raytracing_program.set_float("u_voxelDim", VOXEL_DIM);
 		raytracing_program.set_vec2("u_resolution", glm::vec2(WIDTH, HEIGHT));
 		
 		raytracing_program.dispathCompute((WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1);

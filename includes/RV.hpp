@@ -15,7 +15,9 @@
 
 # define WIDTH 1920
 # define HEIGHT 1080
+
 # define VOXEL_DIM 512
+# define VOXEL_SIZE 0.1f
 
 #define GLM_ENABLE_EXPERIMENTAL
 
@@ -51,6 +53,7 @@ struct Vertex {
     glm::vec2 texCoord;
 };
 
+# include "VoxModel.hpp"
 # include "Buffer.hpp"
 # include "Camera.hpp"
 # include "Window.hpp"

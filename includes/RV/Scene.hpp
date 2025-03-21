@@ -27,19 +27,13 @@ struct GPUMaterial
 	int						emission_texture_index;
 };
 
-typedef struct s_Material
+struct GPUVoxel
 {
-	glm::vec3	color;
-	float		emission;
-	float		roughness;
-	float		metallic;
-	float		refraction;
-	int			type;
-	int			texture_index;
-	int			emission_texture_index;
-}				Material;
+	int color;
+};
 
 class Camera;
+class VoxModel;
 
 class Scene
 {
@@ -48,9 +42,11 @@ class Scene
 		~Scene();
 
 		void							parseScene(std::string &name);
+		void							placeModel(VoxModel &model, glm::ivec3 position);
 
-		void							addMaterial(Material *material);
+		void							addMaterial(GPUMaterial material);
 		
+		std::vector<GPUVoxel>			&getVoxelData();
 		std::vector<GPUMaterial>		&getMaterialData();
 
 		Camera							*getCamera(void) const;
@@ -58,6 +54,7 @@ class Scene
 		
 	private:
 
+		std::vector<GPUVoxel>		_voxelData;
 		std::vector<GPUMaterial>	_gpu_materials;
 
 		Camera						*_camera;

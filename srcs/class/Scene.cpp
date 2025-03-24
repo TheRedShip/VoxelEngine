@@ -18,6 +18,11 @@
 Scene::Scene()
 {
 	_camera = new Camera(glm::vec3(static_cast<float>((VOXEL_DIM / 2.0) * VOXEL_SIZE)), glm::vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
+
+	_gpu_debug.enabled = 0;
+	_gpu_debug.mode = 0;
+	_gpu_debug.triangle_treshold = 1;
+	_gpu_debug.box_treshold = 1;
 }
 
 Scene::~Scene()
@@ -25,7 +30,7 @@ Scene::~Scene()
 	delete (_camera);
 }
 
-void	Scene::placeModel(VoxModel &model, glm::ivec3 position)
+void	Scene::placeModel(VoxModel &model, glm::ivec3 position, std::vector<GPUVoxel> &voxel_data)
 {
 	for (VoxChunk &chunk : model.getChunks())
 	{
@@ -51,7 +56,7 @@ void	Scene::placeModel(VoxModel &model, glm::ivec3 position)
 					if (voxel.active)
 					{
 						uint32_t color = model.getPalette()[voxel.paletteIndex];
-						_voxelData[index_data].color = color;
+						voxel_data[index_data].color = color;
 					}
 				}
 			}
@@ -61,42 +66,104 @@ void	Scene::placeModel(VoxModel &model, glm::ivec3 position)
 
 void Scene::parseScene(std::string &name)
 {
-	_voxelData.resize(VOXEL_DIM * VOXEL_DIM * VOXEL_DIM);
-	memset(_voxelData.data(), 0, _voxelData.size());
+	SVO *root = new SVO(glm::ivec3(0), glm::ivec3(VOXEL_DIM));
+
+	std::vector<GPUVoxel> voxel_data;
+	voxel_data.resize(VOXEL_DIM * VOXEL_DIM * VOXEL_DIM);
+	memset(voxel_data.data(), 0, voxel_data.size());
 
 	VoxModel model = VoxModel(name);
-	if (!model.isParsed())
-	{
+	if (model.isParsed())
+		this->placeModel(model, glm::ivec3(VOXEL_DIM / 2), voxel_data);
+	else
 		std::cout << "Failed to parse vox model" << std::endl;
-		return;
-	}
+	
+	// int index_data = (120 + VOXEL_DIM * (120 + VOXEL_DIM * 120));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (10 + VOXEL_DIM * (120 + VOXEL_DIM * 120));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (120 + VOXEL_DIM * (10 + VOXEL_DIM * 120));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (120 + VOXEL_DIM * (120 + VOXEL_DIM * 10));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (10 + VOXEL_DIM * (10 + VOXEL_DIM * 10));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (10 + VOXEL_DIM * (120 + VOXEL_DIM * 10));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (120 + VOXEL_DIM * (10 + VOXEL_DIM * 10));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (10 + VOXEL_DIM * (10 + VOXEL_DIM * 120));
+	// voxel_data[index_data].color = 0x00FF00FF;
 
-	this->placeModel(model, glm::ivec3(VOXEL_DIM / 2));
+	// index_data = (30 + VOXEL_DIM * (30 + VOXEL_DIM * 30));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (5 + VOXEL_DIM * (30 + VOXEL_DIM * 30));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (30 + VOXEL_DIM * (5 + VOXEL_DIM * 30));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (30 + VOXEL_DIM * (30 + VOXEL_DIM * 5));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (5 + VOXEL_DIM * (5 + VOXEL_DIM * 5));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (5 + VOXEL_DIM * (30 + VOXEL_DIM * 5));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (30 + VOXEL_DIM * (5 + VOXEL_DIM * 5));
+	// voxel_data[index_data].color = 0x00FF00FF;
+	// index_data = (5 + VOXEL_DIM * (5 + VOXEL_DIM * 30));
+	// voxel_data[index_data].color = 0x00FF00FF;
 
-    for (int z = 0; z < VOXEL_DIM; ++z)
-    {
-        for (int y = 0; y < VOXEL_DIM; ++y)
-        {
-            for (int x = 0; x < VOXEL_DIM; ++x)
-            {
+	// for (int x = 0; x < 30; x++)
+	// {
+	// 	index_data = (x + VOXEL_DIM * (30 + VOXEL_DIM * 30));
+	// 	voxel_data[index_data].color = 0xFF0000FF;
+	// }
+
+
+	//count time to insert voxels in ms
+	auto start = std::chrono::high_resolution_clock::now();
+
+	int count = 0;
+	for (int z = 0; z < VOXEL_DIM; ++z)
+	{
+		for (int y = 0; y < VOXEL_DIM; ++y)
+		{
+			for (int x = 0; x < VOXEL_DIM; ++x)
+			{
 				int index_data = (x + VOXEL_DIM * (y + VOXEL_DIM * z));
-                if (y <= 1)
-                {
-                    int red   = 0;
-                    int green = 150 + (rand() % 25);
-                    int blue  = 0;
-                    int alpha = 255;
-
-                    int packedColor = (red   << 24) |
-                                      (green << 16) |
-                                      (blue  << 8)  |
-                                      (alpha);
-
-					_voxelData[index_data].color = packedColor;
+				if (voxel_data[index_data].color != 0)
+				{
+					count++;
+					GPUVoxel voxel;
+					voxel.position = glm::ivec3(x, y, z);
+					voxel.color = voxel_data[index_data].color;
+					root->insert(voxel, 16);
 				}
-            }
-        }
-    }
+			}
+		}
+	}
+	
+	root->flatten(flatNodes, flatVoxels);
+
+	std::cout << "Voxels inserted: " << count << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() << "ms" << std::endl;
+
+	// for (int i = 0; i < flatNodes.size(); i++)
+	// {
+	// 	std::cout << "Node: " << i << std::endl;
+	// 	std::cout << "Min: " << flatNodes[i].min.x << " " << flatNodes[i].min.y << " " << flatNodes[i].min.z << std::endl;
+	// 	std::cout << "Max: " << flatNodes[i].max.x << " " << flatNodes[i].max.y << " " << flatNodes[i].max.z << std::endl;
+	// 	std::cout << "Child offset: " << flatNodes[i].childOffset << std::endl;
+	// 	std::cout << "Voxel index: " << flatNodes[i].voxelIndex << std::endl;
+	// 	std::cout << "Voxel count: " << flatNodes[i].voxelCount << std::endl;
+	// 	std::cout << "Child mask: " << (int)flatNodes[i].childMask << std::endl;
+	// 	for (int j = 0; j < flatNodes[i].voxelCount; j++)
+	// 	{
+	// 		std::cout << "Voxel: " << flatVoxels[flatNodes[i].voxelIndex + j].position.x << " " << flatVoxels[flatNodes[i].voxelIndex + j].position.y << " " << flatVoxels[flatNodes[i].voxelIndex + j].position.z << std::endl;
+	// 	}
+	// 	std::cout << std::endl;
+	// }
+
+	// root->print(0);
+	voxel_data.clear();
 }
 
 void		Scene::addMaterial(GPUMaterial material)
@@ -104,14 +171,14 @@ void		Scene::addMaterial(GPUMaterial material)
 	_gpu_materials.push_back(material);
 }
 
-std::vector<GPUVoxel>		&Scene::getVoxelData()
-{
-	return (_voxelData);
-}
-
 std::vector<GPUMaterial>		&Scene::getMaterialData()
 {
 	return (_gpu_materials);
+}
+
+GPUDebug	&Scene::getDebug(void)
+{
+	return (_gpu_debug);
 }
 
 Camera							*Scene::getCamera(void) const

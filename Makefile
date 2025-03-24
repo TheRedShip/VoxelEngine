@@ -27,8 +27,8 @@ else
 	LINE_CLR	=	\33[2K\r
 	RM          :=	rm -rf
 	DIR_DUP     =	mkdir -p $(@D)
-	CC          :=	g++ -fsanitize=address -static-libasan -g
-	CFLAGS      :=	-Wall -Wextra -Werror -g -O3 -std=c++20
+	CC          :=	g++ -g 
+	CFLAGS      :=	-Wall -Wextra -Werror -g -std=c++20 -fsanitize=address -static-libasan
 	IFLAGS	    :=	-I./includes -I./includes/RV -I./includes/imgui 
 	LDFLAGS		+=  -lglfw -lGL -lGLU -lX11 -lpthread -ldl
 	FILE		=	$(shell ls -lR srcs/ | grep -F .c | wc -l)
@@ -48,6 +48,7 @@ IMGUI_SRCS := imgui/imgui.cpp         \
 
 ALL_SRCS	:=	$(IMGUI_SRCS)	gl.cpp		\
 				RV.cpp	RV_utils.cpp		\
+				class/SVO.cpp				\
 				class/VoxModel.cpp			\
 				class/VoxParsing.cpp		\
 				class/Window.cpp			\

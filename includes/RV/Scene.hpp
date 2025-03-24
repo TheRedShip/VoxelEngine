@@ -29,8 +29,19 @@ struct GPUMaterial
 
 struct GPUVoxel
 {
+	alignas(16)	glm::ivec3 position;
 	int color;
 };
+
+struct GPUDebug
+{
+	int	enabled;
+	int	mode;
+	int	triangle_treshold;
+	int	box_treshold;
+};
+
+struct FlatSVONode;
 
 class Camera;
 class VoxModel;
@@ -42,20 +53,24 @@ class Scene
 		~Scene();
 
 		void							parseScene(std::string &name);
-		void							placeModel(VoxModel &model, glm::ivec3 position);
+		void							placeModel(VoxModel &model, glm::ivec3 position, std::vector<GPUVoxel> &voxel_data);
 
 		void							addMaterial(GPUMaterial material);
 		
-		std::vector<GPUVoxel>			&getVoxelData();
 		std::vector<GPUMaterial>		&getMaterialData();
+		GPUDebug						&getDebug(void);
 
 		Camera							*getCamera(void) const;
 		GPUMaterial						getMaterial(int material_index);
+
+		std::vector<FlatSVONode> flatNodes;
+		std::vector<GPUVoxel> flatVoxels;
 		
 	private:
 
-		std::vector<GPUVoxel>		_voxelData;
 		std::vector<GPUMaterial>	_gpu_materials;
+
+		GPUDebug					_gpu_debug;
 
 		Camera						*_camera;
 };

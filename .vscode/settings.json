@@ -82,6 +82,7 @@
 		"xtree": "cpp",
 		"filesystem": "cpp",
 		"forward_list": "cpp",
-		"codecvt": "cpp"
+		"codecvt": "cpp",
+		"queue": "cpp"
 	}
 }

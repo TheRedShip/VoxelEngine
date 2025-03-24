@@ -36,7 +36,7 @@ class Window
 		static void	mouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
 
 		void		imGuiNewFrame();
-		void		imGuiRender();
+		void		imGuiRender(ShaderProgram &raytracing_program);
 
 		GLFWwindow	*getWindow(void) const;
 		float		getFps(void) const;

@@ -34,6 +34,8 @@
 # include "imgui/imgui_impl_glfw.h"
 # include "imgui/imgui_impl_opengl3.h"
 
+# include <queue>
+
 # include <filesystem>
 # include <algorithm>
 # include <string.h>
@@ -54,6 +56,7 @@ struct Vertex {
 };
 
 # include "VoxModel.hpp"
+# include "SVO.hpp"
 # include "Buffer.hpp"
 # include "Camera.hpp"
 # include "Window.hpp"

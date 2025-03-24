@@ -180,7 +180,7 @@ void Window::imGuiNewFrame()
 	ImGui::NewFrame();
 }
 
-void Window::imGuiRender()
+void Window::imGuiRender(ShaderProgram &raytracing_program)
 {
 	bool has_changed = false;
 	
@@ -247,6 +247,20 @@ void Window::imGuiRender()
 		}
 		ImGui::EndChild();
 
+	}
+
+	if (ImGui::CollapsingHeader("Debug"))
+	{
+		if (ImGui::Checkbox("Enable", (bool *)(&_scene->getDebug().enabled)))
+		{
+			raytracing_program.setDefine("DEBUG", std::to_string(_scene->getDebug().enabled));
+			raytracing_program.reloadShaders();
+			has_changed = true;
+		}
+		ImGui::Separator();
+		has_changed |= ImGui::SliderInt("Debug mode", &_scene->getDebug().mode, 0, 2);
+		has_changed |= ImGui::SliderInt("Box treshold", &_scene->getDebug().box_treshold, 1, 2000);
+		has_changed |= ImGui::SliderInt("Triangle treshold", &_scene->getDebug().triangle_treshold, 1, 2000);
 	}
 
 	ImGui::End();

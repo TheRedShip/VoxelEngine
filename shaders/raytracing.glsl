@@ -10,6 +10,7 @@ uniform float	u_voxelSize;
 
 struct GPUVoxel
 {
+	vec3 normal;
 	ivec3 position;
 	int color;
 };
@@ -74,7 +75,7 @@ vec3 pathtrace(Ray ray, inout uint rng_state)
 
 	vec3 color = vec3(1.);
 
-	vec3 light_dir = normalize(vec3(sin(u_time), -0.5, 0.));
+	vec3 light_dir = normalize(vec3(sin(u_time * 0.5), -0.5, 0.01));
 
 	for (int i = 0; i < 1; i++)
 	{
@@ -86,12 +87,10 @@ vec3 pathtrace(Ray ray, inout uint rng_state)
 		}
 		
 		color *= hit.color.rgb;
-		// color *= hit.normal;
-		// break ;
 
 		//shadow ray//
 		Ray shadow_ray;
-		shadow_ray.origin = hit.position + hit.normal;
+		shadow_ray.origin = hit.position + hit.normal * 0.001;
 		shadow_ray.direction = -light_dir;
 
 		hitInfo temp;

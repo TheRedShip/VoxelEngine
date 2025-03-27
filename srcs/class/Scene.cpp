@@ -117,7 +117,20 @@ void Scene::parseScene(std::string &name)
 	// 	index_data = (x + VOXEL_DIM * (30 + VOXEL_DIM * 30));
 	// 	voxel_data[index_data].color = 0xFF0000FF;
 	// }
+	for (int z = 0; z < VOXEL_DIM; ++z)
+	{
+		for (int y = 0; y < VOXEL_DIM; ++y)
+		{
+			for (int x = 0; x < VOXEL_DIM; ++x)
+			{
+				int index_data = (x + VOXEL_DIM * (y + VOXEL_DIM * z));
+			
+				if (y <= 2)
+					voxel_data[index_data].color = 0x00FF00FF;
 
+			}
+		}
+	}
 
 	//count time to insert voxels in ms
 	auto start = std::chrono::high_resolution_clock::now();
@@ -130,12 +143,38 @@ void Scene::parseScene(std::string &name)
 			for (int x = 0; x < VOXEL_DIM; ++x)
 			{
 				int index_data = (x + VOXEL_DIM * (y + VOXEL_DIM * z));
+			
+				if (y <= 2)
+					voxel_data[index_data].color = 0x00FF00FF;
+
 				if (voxel_data[index_data].color != 0)
 				{
 					count++;
 					GPUVoxel voxel;
 					voxel.position = glm::ivec3(x, y, z);
 					voxel.color = voxel_data[index_data].color;
+					voxel.normal = glm::vec3(0.);
+
+					for (int xo = -1; xo <= 1; xo++)
+					{
+						for (int yo = -1; yo <= 1; yo++)
+						{
+							for (int zo = -1; zo <= 1; zo++)
+							{
+								glm::ivec3 offset = glm::ivec3(xo, yo, zo);
+
+								int new_index_data = (x + xo + VOXEL_DIM * ((y + yo) + VOXEL_DIM * (z + zo)));
+								if (new_index_data < 0 || new_index_data >= VOXEL_DIM * VOXEL_DIM * VOXEL_DIM)
+									continue;
+
+								if (voxel_data[new_index_data].color == 0)
+									voxel.normal += glm::vec3(offset);
+							}
+						}
+					}
+
+					voxel.normal = glm::normalize(voxel.normal);
+
 					root->insert(voxel, 16);
 				}
 			}

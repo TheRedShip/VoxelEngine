@@ -125,14 +125,14 @@ void SVO::flatten(std::vector<FlatSVONode> &flatNodes, std::vector<GPUVoxel> &fl
 		if (currentNode->_leaf)
 		{
 			// Handle leaf node
-			// if (!currentNode->voxels.empty())
-			// {
-			flatNode.voxelIndex = flatVoxels.size();
-			flatNode.voxelCount = currentNode->_voxels.size();
-			
-			for (GPUVoxel &voxel : currentNode->_voxels)
-				flatVoxels.push_back(voxel);
-			// }
+			if (!currentNode->_voxels.empty())
+			{
+				flatNode.voxelIndex = flatVoxels.size();
+				flatNode.voxelCount = currentNode->_voxels.size();
+				
+				for (GPUVoxel &voxel : currentNode->_voxels)
+					flatVoxels.push_back(voxel);
+			}
 		}
 		else
 		{

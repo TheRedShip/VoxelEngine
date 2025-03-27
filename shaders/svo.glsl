@@ -42,14 +42,11 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
                 int index = node.voxelIndex + i;
                 GPUVoxel voxel = flatVoxels[index];
                 
-				if (distance(ray.origin, voxel.position) > hit.dist)
-					continue;
-
 				vec3 box_min = voxel.position;
 				vec3 box_max = voxel.position + vec3(1);
 
 				float dist = 0.;
-				if (intersectRayBox(ray, box_min, box_max, dist))
+				if (intersectRayBox(ray, box_min, box_max, dist) && dist < hit.dist)
 				{
 					hit.color.r = float((voxel.color >> 24u) & 0xFFu) / 255.0;
 					hit.color.g = float((voxel.color >> 16u) & 0xFFu) / 255.0;
@@ -57,8 +54,8 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 					hit.color.a = float(voxel.color & 0xFFu) / 255.0;
 
 					hit.dist = dist;
-					hit.position = ray.origin + ray.direction * hit.dist;
-					hit.normal = vec3(0., 1., 0.);
+					hit.position = ray.origin + ray.direction * dist;
+					hit.normal = voxel.normal;
 				}
 
 				stats.voxels++;

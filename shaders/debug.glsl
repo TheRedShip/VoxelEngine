@@ -10,6 +10,7 @@ uniform float	u_voxelSize;
 
 struct GPUVoxel
 {
+	vec3 normal;
 	ivec3 position;
 	int color;
 };
@@ -96,7 +97,7 @@ vec3 debugColor(Ray ray)
 	switch (debug.mode)
 	{
 		case 0:
-			return (hit.normal * 0.5 + 0.5);
+			return (hit.normal);
 		case 1:
 			return (node_display < 1. ? vec3(node_display) : vec3(1., 0., 0.));
 		case 2:

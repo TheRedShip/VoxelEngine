@@ -89,7 +89,7 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 		hitInfo hit;
 		if (!traverseSVO(ray, hit, stats))
 		{
-			color_light[1] += vec3(0.2, 0.4, 1.0);
+			color_light[1] += vec3(1.);
 			break;
 		}
 
@@ -174,7 +174,6 @@ void main()
 	vec3[2] color_light = pathtrace(ray, rng_state, voxel_index);
 
 	vec3 final_light;
-	vec3 final_color = vec3(1.);
 
 	if (voxel_index != -1)
 	{
@@ -185,11 +184,11 @@ void main()
 			atomicExchange(flatVoxels[voxel_index].light_z, 0);
 		}
 		
-		if (flatVoxels[voxel_index].accum_count < 1000)
+		if (flatVoxels[voxel_index].accum_count < 20000)
 		{
-			atomicAdd(flatVoxels[voxel_index].light_x, int(color_light[1].x * 255.));
-			atomicAdd(flatVoxels[voxel_index].light_y, int(color_light[1].y * 255.));
-			atomicAdd(flatVoxels[voxel_index].light_z, int(color_light[1].z * 255.));
+			atomicAdd(flatVoxels[voxel_index].light_x, int(color_light[1].x * color_light[0].x * 255.));
+			atomicAdd(flatVoxels[voxel_index].light_y, int(color_light[1].y * color_light[0].y * 255.));
+			atomicAdd(flatVoxels[voxel_index].light_z, int(color_light[1].z * color_light[0].z * 255.));
 
 			atomicAdd(flatVoxels[voxel_index].accum_count, 1);
 		}
@@ -197,12 +196,10 @@ void main()
 		final_light = vec3(flatVoxels[voxel_index].light_x / 255.0, 
 						   flatVoxels[voxel_index].light_y / 255.0,
 						   flatVoxels[voxel_index].light_z / 255.0) / float(flatVoxels[voxel_index].accum_count);
-
-		final_color = unpack_color(flatVoxels[voxel_index].color).rgb;
 	}
 	else
 		final_light = color_light[1];
 
 
-	imageStore(output_image, pixel_coords, vec4(final_light * final_color, 1.0));
+	imageStore(output_image, pixel_coords, vec4(final_light, 1.0));
 }

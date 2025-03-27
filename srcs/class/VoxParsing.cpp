@@ -22,7 +22,7 @@ bool VoxModel::parseVoxFile(const std::string &filename, VoxModel &model)
 	file.read(header, 4);
 	if (std::strncmp(header, "VOX ", 4) != 0) {
 		std::cerr << "Invalid VOX file format." << std::endl;
-		return false;
+		return (false);
 	}
 	
 	uint32_t version;
@@ -182,7 +182,7 @@ bool VoxModel::parseVoxFile(const std::string &filename, VoxModel &model)
 		max = glm::max(max, glm::ivec3(chunk.offset_x + chunk.width, chunk.offset_y + chunk.height, chunk.offset_z + chunk.depth));		
 	}
 
-	model.setSize(glm::vec3(max - min));
+	model.setSize(glm::ivec3(max - min));
 	
-	return true;
+	return (true);
 }

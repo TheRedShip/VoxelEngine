@@ -7,10 +7,8 @@ struct Stats
 
 bool intersectRayBox(Ray ray, vec3 box_min, vec3 box_max, inout float dist)
 {
-	vec3 inv_direction = 1.0 / ray.direction;
-
-	vec3 t1 = (box_min - ray.origin) * inv_direction;
-	vec3 t2 = (box_max - ray.origin) * inv_direction;
+	vec3 t1 = (box_min - ray.origin) * ray.inv_direction;
+	vec3 t2 = (box_max - ray.origin) * ray.inv_direction;
 	
 	vec3 tMin = min(t1, t2);
 	vec3 tMax = max(t1, t2);
@@ -24,9 +22,8 @@ bool intersectRayBox(Ray ray, vec3 box_min, vec3 box_max, inout float dist)
 bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 {
 	hit.dist = 1e30;
-	hit.color = vec4(0.);
 
-	int stack[32];
+	int stack[16];
 	int stack_ptr = 0;
 	stack[0] = 0;
 
@@ -41,21 +38,15 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
             {
                 int index = node.voxelIndex + i;
                 GPUVoxel voxel = flatVoxels[index];
-                
+
 				vec3 box_min = voxel.position;
-				vec3 box_max = voxel.position + vec3(1);
+				vec3 box_max = voxel.position + vec3(1.001);
 
 				float dist = 0.;
 				if (intersectRayBox(ray, box_min, box_max, dist) && dist < hit.dist)
 				{
-					hit.color.r = float((voxel.color >> 24u) & 0xFFu) / 255.0;
-					hit.color.g = float((voxel.color >> 16u) & 0xFFu) / 255.0;
-					hit.color.b = float((voxel.color >> 8u)  & 0xFFu) / 255.0;
-					hit.color.a = float(voxel.color & 0xFFu) / 255.0;
-
 					hit.dist = dist;
-					hit.position = ray.origin + ray.direction * dist;
-					hit.normal = voxel.normal;
+					hit.voxel_index = index;
 				}
 
 				stats.voxels++;
@@ -70,7 +61,7 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 					GPUFlatVoxel child = flatSVONodes[node.childOffset + i];
 
 					float dist = 0.;
-					if (intersectRayBox(ray, vec3(child.min), vec3(child.max), dist))
+					if (intersectRayBox(ray, vec3(child.min), vec3(child.max), dist) && dist < hit.dist)
 						stack[++stack_ptr] = node.childOffset + i;
 
 					stats.nodes++;

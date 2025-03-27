@@ -47,7 +47,7 @@ const bool	&VoxModel::isParsed() const
 	return (_parsed);
 }
 
-const glm::vec3				&VoxModel::getSize() const
+glm::ivec3				&VoxModel::getSize()
 {
 	return (_size);
 }
@@ -62,7 +62,7 @@ const uint32_t	*VoxModel::getPalette() const
 	return (_palette);
 }
 
-void VoxModel::setSize(glm::vec3 size)
+void VoxModel::setSize(glm::ivec3 size)
 {
 	_size = size;
 }

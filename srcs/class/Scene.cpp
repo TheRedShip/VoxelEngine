@@ -45,13 +45,11 @@ void	Scene::placeModel(VoxModel &model, glm::ivec3 position, std::vector<GPUVoxe
 			{
 				for (int x = 0; x < chunk.width; ++x)
 				{
-					if (x >= VOXEL_DIM || x < 0 || y >= VOXEL_DIM || y < 0 || z >= VOXEL_DIM || z < 0)
-					{
-						std::cout << "Voxel: " << x << " " << y << " " << z << " is out of bounds" << std::endl;
-						continue;
-					}
 					int index_data = ((x + offset.x) + VOXEL_DIM * ((y + offset.y) + VOXEL_DIM * (z + offset.z)));						
 					
+					if (index_data < 0 || index_data >= VOXEL_DIM * VOXEL_DIM * VOXEL_DIM)
+						continue;
+
 					Voxel voxel = chunk.voxels[z][y][x];
 					if (voxel.active)
 					{
@@ -74,7 +72,9 @@ void Scene::parseScene(std::string &name)
 
 	VoxModel model = VoxModel(name);
 	if (model.isParsed())
+	{
 		this->placeModel(model, glm::ivec3(VOXEL_DIM / 2), voxel_data);
+	}
 	else
 		std::cout << "Failed to parse vox model" << std::endl;
 	
@@ -126,7 +126,13 @@ void Scene::parseScene(std::string &name)
 				int index_data = (x + VOXEL_DIM * (y + VOXEL_DIM * z));
 			
 				if (y <= 2)
-					voxel_data[index_data].color = 0x00FF00FF;
+				{
+					int r = 20;
+					int g = 100 + rand() % 25;
+					int b = 20;
+					
+					voxel_data[index_data].color = (r << 24) | (g << 16) | (b << 8) | 0xFF;
+				}
 
 			}
 		}
@@ -144,9 +150,6 @@ void Scene::parseScene(std::string &name)
 			{
 				int index_data = (x + VOXEL_DIM * (y + VOXEL_DIM * z));
 			
-				if (y <= 2)
-					voxel_data[index_data].color = 0x00FF00FF;
-
 				if (voxel_data[index_data].color != 0)
 				{
 					count++;

@@ -13,6 +13,7 @@ struct GPUVoxel
 	vec3 normal;
 	ivec3 position;
 	int color;
+	int light;
 };
 
 struct GPUFlatVoxel
@@ -56,13 +57,12 @@ layout(std140, binding = 0) uniform CameraData
 struct Ray {
 	vec3 origin;
 	vec3 direction;
+	vec3 inv_direction;
 };
 
 struct hitInfo
 {
-	vec4 color;
-	vec3 position;
-	vec3 normal;
+	int voxel_index;
 	float dist;
 };
 
@@ -75,7 +75,7 @@ vec3 pathtrace(Ray ray, inout uint rng_state)
 
 	vec3 color = vec3(1.);
 
-	vec3 light_dir = normalize(vec3(sin(u_time * 0.5), -0.5, 0.01));
+	vec3 light_dir = normalize(vec3(0.01, -0.5, sin(u_time * 0.05) * 0.2));
 
 	for (int i = 0; i < 1; i++)
 	{
@@ -86,19 +86,27 @@ vec3 pathtrace(Ray ray, inout uint rng_state)
 			break;
 		}
 		
-		color *= hit.color.rgb;
+		GPUVoxel voxel = flatVoxels[hit.voxel_index];
+		vec4 voxel_color = vec4(
+			float((voxel.color >> 24u) & 0xFFu) / 255.0,
+			float((voxel.color >> 16u) & 0xFFu) / 255.0,
+			float((voxel.color >> 8u) & 0xFFu) / 255.0,
+			float(voxel.color & 0xFFu) / 255.0);
+
+		color *= voxel_color.rgb; 
 
 		//shadow ray//
 		Ray shadow_ray;
-		shadow_ray.origin = hit.position + hit.normal * 0.001;
+		shadow_ray.origin = voxel.position + (u_voxelSize / 2.0) + voxel.normal;
 		shadow_ray.direction = -light_dir;
+		shadow_ray.inv_direction = 1.0 / shadow_ray.direction;
 
 		hitInfo temp;
 		if (traverseSVO(shadow_ray, temp, stats))
 			color.rgb *= 0.5;
 		//
 		
-		float diffuse = max(dot(hit.normal, -light_dir), 0.1);
+		float diffuse = max(dot(voxel.normal, -light_dir), 0.1);
 		color *= diffuse;
 	}
 	
@@ -125,7 +133,7 @@ Ray initRay(vec2 uv, inout uint rng_state)
 	origin += right * lens_point.x + up * lens_point.y;
 	ray_direction = normalize(focal_point - origin);
 
-	return (Ray(origin, ray_direction));
+	return (Ray(origin, ray_direction, 1.0 / ray_direction));
 }
 
 void main()
@@ -139,7 +147,7 @@ void main()
 
 	vec2 jitter = randomPointInCircle(rng_state) * 1;
 
-	vec2 uv = ((vec2(pixel_coords) + jitter) / u_resolution) * 2.0 - 1.0;
+	vec2 uv = ((vec2(pixel_coords)) / u_resolution) * 2.0 - 1.0;
 	uv.x *= u_resolution.x / u_resolution.y;
 
 	Ray ray = initRay(uv, rng_state);

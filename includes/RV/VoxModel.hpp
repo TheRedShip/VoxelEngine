@@ -36,21 +36,21 @@ class VoxModel
 
 		static bool parseVoxFile(const std::string& filename, VoxModel& model);
 
-		const glm::vec3			&getSize() const;
+		glm::ivec3				&getSize();
 
 		std::vector<VoxChunk>	&getChunks();
 		const uint32_t			*getPalette() const;
 
 		const bool				&isParsed() const;
 
-		void					setSize(glm::vec3 size);
+		void					setSize(glm::ivec3 size);
 		void					setPalette(uint32_t palette[256]);
 
 
 	private:
 		bool					_parsed;
 
-		glm::vec3				_size;
+		glm::ivec3				_size;
 
 		std::vector<VoxChunk>	_chunks;
 

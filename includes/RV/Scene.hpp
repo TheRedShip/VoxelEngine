@@ -32,6 +32,7 @@ struct GPUVoxel
 	alignas(16) glm::vec3 normal;
 	alignas(16)	glm::ivec3 position;
 	int color;
+	int light;
 };
 
 struct GPUDebug

@@ -23,7 +23,7 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 {
 	hit.dist = 1e30;
 
-	int stack[16];
+	int stack[32];
 	int stack_ptr = 0;
 	stack[0] = 0;
 

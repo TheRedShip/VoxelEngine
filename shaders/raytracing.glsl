@@ -13,7 +13,7 @@ struct GPUVoxel
 	vec3 normal;
 	ivec3 position;
 	int color;
-	int light;
+	uint light;
 };
 
 struct GPUFlatVoxel
@@ -54,7 +54,8 @@ layout(std140, binding = 0) uniform CameraData
     GPUCamera camera;
 };
 
-struct Ray {
+struct Ray
+{
 	vec3 origin;
 	vec3 direction;
 	vec3 inv_direction;
@@ -69,22 +70,27 @@ struct hitInfo
 #include "shaders/random.glsl"
 #include "shaders/svo.glsl"
 
-vec3 pathtrace(Ray ray, inout uint rng_state)
+vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 {
 	Stats stats;
 
-	vec3 color = vec3(1.);
+	vec3[2] color_light;
+	color_light[0] = vec3(1.);
+	color_light[1] = vec3(0.);
 
-	vec3 light_dir = normalize(vec3(0.01, -0.5, sin(u_time * 0.05) * 0.2));
+	// vec3 light_dir = normalize(vec3(0.01, -0.5, sin(u_time * 0.05) * 0.2));
 
-	for (int i = 0; i < 1; i++)
+	for (int i = 0; i < 2; i++)
 	{
 		hitInfo hit;
 		if (!traverseSVO(ray, hit, stats))
 		{
-			color *= vec3(0.2, 0.4, 1.0);
+			color_light[1] += vec3(0.2, 0.4, 1.0);
 			break;
 		}
+
+		if (i == 0)
+			voxel_index = hit.voxel_index;
 		
 		GPUVoxel voxel = flatVoxels[hit.voxel_index];
 		vec4 voxel_color = vec4(
@@ -93,24 +99,14 @@ vec3 pathtrace(Ray ray, inout uint rng_state)
 			float((voxel.color >> 8u) & 0xFFu) / 255.0,
 			float(voxel.color & 0xFFu) / 255.0);
 
-		color *= voxel_color.rgb; 
+		color_light[0] *= voxel_color.rgb;
 
-		//shadow ray//
-		Ray shadow_ray;
-		shadow_ray.origin = voxel.position + (u_voxelSize / 2.0) + voxel.normal;
-		shadow_ray.direction = -light_dir;
-		shadow_ray.inv_direction = 1.0 / shadow_ray.direction;
-
-		hitInfo temp;
-		if (traverseSVO(shadow_ray, temp, stats))
-			color.rgb *= 0.5;
-		//
-		
-		float diffuse = max(dot(voxel.normal, -light_dir), 0.1);
-		color *= diffuse;
+		ray.origin = voxel.position + 0.5 + voxel.normal;
+		ray.direction = randomHemisphereDirection(voxel.normal, rng_state);
+		ray.inv_direction = 1.0 / ray.direction;
 	}
 	
-	return (color);
+	return (color_light);
 }
 
 Ray initRay(vec2 uv, inout uint rng_state)
@@ -136,6 +132,24 @@ Ray initRay(vec2 uv, inout uint rng_state)
 	return (Ray(origin, ray_direction, 1.0 / ray_direction));
 }
 
+vec4 unpack_color(uint packed_color)
+{
+    float r = float((packed_color >> 24u) & 0xFFu) / 255.0;
+    float g = float((packed_color >> 16u) & 0xFFu) / 255.0;
+    float b = float((packed_color >> 8u) & 0xFFu) / 255.0;
+    float a = float(packed_color & 0xFFu) / 255.0;
+    return vec4(r, g, b, a);
+}
+
+uint pack_color(vec3 color)
+{
+    uint r = uint(color.r * 255.0) & 0xFFu;
+    uint g = uint(color.g * 255.0) & 0xFFu;
+    uint b = uint(color.b * 255.0) & 0xFFu;
+    uint a = 0xFFu;
+    return (r << 24u) | (g << 16u) | (b << 8u) | a;
+}
+
 void main()
 {
 	ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
@@ -152,7 +166,16 @@ void main()
 
 	Ray ray = initRay(uv, rng_state);
 
-	vec3 color = pathtrace(ray, rng_state);
+	int voxel_index = -1;
+	vec3[2] color_light = pathtrace(ray, rng_state, voxel_index);
+	if (voxel_index != -1)
+	{
+		vec3 previous_light = unpack_color(flatVoxels[voxel_index].light).rgb;
+		vec3 new_light = mix(color_light[1], previous_light, 1.0 / (float(u_frameCount) + 1.0));
+		
+		uint gatthered_light = pack_color(new_light);
+		atomicExchange(flatVoxels[voxel_index].light, gatthered_light);
+	}
 
-	imageStore(output_image, pixel_coords, vec4(sqrt(color), 1.0));
+	imageStore(output_image, pixel_coords, unpack_color(flatVoxels[voxel_index].light));
 }

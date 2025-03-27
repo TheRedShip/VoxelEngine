@@ -92,7 +92,7 @@ void	Shader::compile()
     shader_code = "#version 430\n" + shader_code;
 
     const char *shader_code_cstr = shader_code.c_str();
-	// printWithLineNumbers(shader_code_cstr);
+	printWithLineNumbers(shader_code_cstr);
     
 	glShaderSource(_shader_id, 1, &shader_code_cstr, NULL);
 	glCompileShader(_shader_id);

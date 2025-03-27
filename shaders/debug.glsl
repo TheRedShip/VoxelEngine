@@ -13,6 +13,12 @@ struct GPUVoxel
 	vec3 normal;
 	ivec3 position;
 	int color;
+
+	uint light_x;
+	uint light_y;
+	uint light_z;
+
+	uint accum_count;
 };
 
 struct GPUFlatVoxel
@@ -76,8 +82,7 @@ struct Ray {
 struct hitInfo
 {
 	vec3 position;
-	vec3 normal;
-	vec4 color;
+	uint voxel_index;
 	float dist;
 };
 
@@ -95,10 +100,12 @@ vec3 debugColor(Ray ray)
 	float node_display = float(stats.nodes) / float(debug.box_treshold);
 	float voxel_display = float(stats.voxels) / float(debug.triangle_treshold);
 
+	GPUVoxel voxel = flatVoxels[hit.voxel_index];
+
 	switch (debug.mode)
 	{
 		case 0:
-			return (hit.normal);
+			return (voxel.normal);
 		case 1:
 			return (node_display < 1. ? vec3(node_display) : vec3(1., 0., 0.));
 		case 2:

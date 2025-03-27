@@ -13,7 +13,11 @@ struct GPUVoxel
 	vec3 normal;
 	ivec3 position;
 	int color;
-	uint light;
+	
+	uint light_x;
+	uint light_y;
+	uint light_z;
+	uint accum_count;
 };
 
 struct GPUFlatVoxel
@@ -168,14 +172,37 @@ void main()
 
 	int voxel_index = -1;
 	vec3[2] color_light = pathtrace(ray, rng_state, voxel_index);
+
+	vec3 final_light;
+	vec3 final_color = vec3(1.);
+
 	if (voxel_index != -1)
 	{
-		vec3 previous_light = unpack_color(flatVoxels[voxel_index].light).rgb;
-		vec3 new_light = mix(color_light[1], previous_light, 1.0 / (float(u_frameCount) + 1.0));
+		if (flatVoxels[voxel_index].accum_count == 0)
+		{
+			atomicExchange(flatVoxels[voxel_index].light_x, 0);
+			atomicExchange(flatVoxels[voxel_index].light_y, 0);
+			atomicExchange(flatVoxels[voxel_index].light_z, 0);
+		}
 		
-		uint gatthered_light = pack_color(new_light);
-		atomicExchange(flatVoxels[voxel_index].light, gatthered_light);
-	}
+		if (flatVoxels[voxel_index].accum_count < 1000)
+		{
+			atomicAdd(flatVoxels[voxel_index].light_x, int(color_light[1].x * 255.));
+			atomicAdd(flatVoxels[voxel_index].light_y, int(color_light[1].y * 255.));
+			atomicAdd(flatVoxels[voxel_index].light_z, int(color_light[1].z * 255.));
 
-	imageStore(output_image, pixel_coords, unpack_color(flatVoxels[voxel_index].light));
+			atomicAdd(flatVoxels[voxel_index].accum_count, 1);
+		}
+
+		final_light = vec3(flatVoxels[voxel_index].light_x / 255.0, 
+						   flatVoxels[voxel_index].light_y / 255.0,
+						   flatVoxels[voxel_index].light_z / 255.0) / float(flatVoxels[voxel_index].accum_count);
+
+		final_color = unpack_color(flatVoxels[voxel_index].color).rgb;
+	}
+	else
+		final_light = color_light[1];
+
+
+	imageStore(output_image, pixel_coords, vec4(final_light * final_color, 1.0));
 }

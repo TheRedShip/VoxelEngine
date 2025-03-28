@@ -82,9 +82,7 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 	color_light[0] = vec3(1.);
 	color_light[1] = vec3(0.);
 
-	// vec3 light_dir = normalize(vec3(0.01, -0.5, sin(u_time * 0.05) * 0.2));
-
-	for (int i = 0; i < 2; i++)
+	for (int i = 0; i < 3; i++)
 	{
 		hitInfo hit;
 		if (!traverseSVO(ray, hit, stats))

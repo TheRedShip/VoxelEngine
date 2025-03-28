@@ -6,7 +6,7 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/23 18:29:41 by ycontre           #+#    #+#             */
-/*   Updated: 2025/03/28 15:43:56 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/28 16:01:16 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,7 @@ Scene::Scene()
 
 	_gpu_debug.enabled = 0;
 	_gpu_debug.mode = 0;
-	_gpu_debug.triangle_treshold = 1;
+	_gpu_debug.voxel_treshold = 1;
 	_gpu_debug.box_treshold = 1;
 }
 

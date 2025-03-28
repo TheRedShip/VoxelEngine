@@ -48,7 +48,7 @@ struct GPUDebug
 {
 	int	enabled;
 	int	mode;
-	int	triangle_treshold;
+	int	voxel_treshold;
 	int	box_treshold;
 };
 
@@ -98,7 +98,7 @@ vec3 debugColor(Ray ray)
 	traverseSVO(ray, hit, stats);
 
 	float node_display = float(stats.nodes) / float(debug.box_treshold);
-	float voxel_display = float(stats.voxels) / float(debug.triangle_treshold);
+	float voxel_display = float(stats.voxels) / float(debug.voxel_treshold);
 
 	GPUVoxel voxel = flatVoxels[hit.voxel_index];
 

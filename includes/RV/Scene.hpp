@@ -6,7 +6,7 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/23 18:30:18 by ycontre           #+#    #+#             */
-/*   Updated: 2025/03/17 11:54:47 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/28 16:01:16 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,7 +44,7 @@ struct GPUDebug
 {
 	int	enabled;
 	int	mode;
-	int	triangle_treshold;
+	int	voxel_treshold;
 	int	box_treshold;
 };
 

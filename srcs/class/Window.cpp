@@ -6,7 +6,7 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/13 16:16:24 by TheRed            #+#    #+#             */
-/*   Updated: 2025/03/17 12:03:34 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/28 16:06:53 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -260,7 +260,7 @@ void Window::imGuiRender(ShaderProgram &raytracing_program)
 		ImGui::Separator();
 		has_changed |= ImGui::SliderInt("Debug mode", &_scene->getDebug().mode, 0, 2);
 		has_changed |= ImGui::SliderInt("Box treshold", &_scene->getDebug().box_treshold, 1, 2000);
-		has_changed |= ImGui::SliderInt("Triangle treshold", &_scene->getDebug().triangle_treshold, 1, 2000);
+		has_changed |= ImGui::SliderInt("Voxel treshold", &_scene->getDebug().voxel_treshold, 1, 2000);
 	}
 
 	ImGui::End();

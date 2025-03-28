@@ -175,13 +175,6 @@ void main()
 
 	if (voxel_index != -1)
 	{
-		if (flatVoxels[voxel_index].accum_count == 0)
-		{
-			atomicExchange(flatVoxels[voxel_index].light_x, 0);
-			atomicExchange(flatVoxels[voxel_index].light_y, 0);
-			atomicExchange(flatVoxels[voxel_index].light_z, 0);
-		}
-		
 		if (flatVoxels[voxel_index].accum_count < 20000)
 		{
 			atomicAdd(flatVoxels[voxel_index].light_x, int(color_light[1].x * color_light[0].x * 255.));

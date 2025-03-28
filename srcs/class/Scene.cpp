@@ -6,7 +6,7 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/23 18:29:41 by ycontre           #+#    #+#             */
-/*   Updated: 2025/03/19 17:17:44 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/28 15:43:56 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,7 +68,7 @@ void Scene::parseScene(std::string &name)
 
 	std::vector<GPUVoxel> voxel_data;
 	voxel_data.resize(VOXEL_DIM * VOXEL_DIM * VOXEL_DIM);
-	memset(voxel_data.data(), 0, voxel_data.size());
+	memset(voxel_data.data(), 0, sizeof(GPUVoxel) * VOXEL_DIM * VOXEL_DIM * VOXEL_DIM);
 
 	VoxModel model = VoxModel(name);
 	if (model.isParsed())
@@ -78,45 +78,6 @@ void Scene::parseScene(std::string &name)
 	else
 		std::cout << "Failed to parse vox model" << std::endl;
 	
-	// int index_data = (120 + VOXEL_DIM * (120 + VOXEL_DIM * 120));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (10 + VOXEL_DIM * (120 + VOXEL_DIM * 120));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (120 + VOXEL_DIM * (10 + VOXEL_DIM * 120));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (120 + VOXEL_DIM * (120 + VOXEL_DIM * 10));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (10 + VOXEL_DIM * (10 + VOXEL_DIM * 10));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (10 + VOXEL_DIM * (120 + VOXEL_DIM * 10));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (120 + VOXEL_DIM * (10 + VOXEL_DIM * 10));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (10 + VOXEL_DIM * (10 + VOXEL_DIM * 120));
-	// voxel_data[index_data].color = 0x00FF00FF;
-
-	// index_data = (30 + VOXEL_DIM * (30 + VOXEL_DIM * 30));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (5 + VOXEL_DIM * (30 + VOXEL_DIM * 30));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (30 + VOXEL_DIM * (5 + VOXEL_DIM * 30));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (30 + VOXEL_DIM * (30 + VOXEL_DIM * 5));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (5 + VOXEL_DIM * (5 + VOXEL_DIM * 5));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (5 + VOXEL_DIM * (30 + VOXEL_DIM * 5));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (30 + VOXEL_DIM * (5 + VOXEL_DIM * 5));
-	// voxel_data[index_data].color = 0x00FF00FF;
-	// index_data = (5 + VOXEL_DIM * (5 + VOXEL_DIM * 30));
-	// voxel_data[index_data].color = 0x00FF00FF;
-
-	// for (int x = 0; x < 30; x++)
-	// {
-	// 	index_data = (x + VOXEL_DIM * (30 + VOXEL_DIM * 30));
-	// 	voxel_data[index_data].color = 0xFF0000FF;
-	// }
 	for (int z = 0; z < VOXEL_DIM; ++z)
 	{
 		for (int y = 0; y < VOXEL_DIM; ++y)
@@ -154,9 +115,11 @@ void Scene::parseScene(std::string &name)
 				{
 					count++;
 					GPUVoxel voxel;
+
+					memset(&voxel, 0, sizeof(GPUVoxel));
+					
 					voxel.position = glm::ivec3(x, y, z);
 					voxel.color = voxel_data[index_data].color;
-					voxel.normal = glm::vec3(0.);
 
 					for (int xo = -1; xo <= 1; xo++)
 					{

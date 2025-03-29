@@ -27,18 +27,7 @@ struct GPUMaterial
 	int						emission_texture_index;
 };
 
-struct GPUVoxel
-{
-	alignas(16) glm::vec3 normal;
-	alignas(16)	glm::ivec3 position;
-	int color;
-
-	uint32_t light_x;
-	uint32_t light_y;
-	uint32_t light_z;
-
-	uint32_t accum_count;
-};
+struct GPUVoxel;
 
 struct GPUDebug
 {

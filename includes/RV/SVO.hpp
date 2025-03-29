@@ -13,50 +13,65 @@
 #ifndef SVO_HPP
 # define SVO_HPP
 
-#include "RV.hpp"
+# include "RV.hpp"
+
+# define LEAF_SIZE 8
 
 struct FlatSVONode
 {
-	alignas(16) glm::ivec3 min;
-	alignas(16) glm::ivec3 max;
-    int childOffset;   // If not a leaf, the index where the children start in the flat node array.
-    int voxelIndex;    // If a leaf, the index into the voxel array.
-    int voxelCount;    // Number of voxels stored in this leaf.
-    uint8_t childMask; // Bits 0-7: each bit indicates existence of a child.
+	alignas(16) glm::ivec3	pos;
+
+	uint64_t 	child_mask;
+	uint32_t 	child_offset;
+	
+	uint32_t 	voxel_index;
+	uint32_t 	voxel_count;
+	
+	int			scale;
 };
 
-class GPUVoxel;
+struct GPUVoxel
+{
+	alignas(16) glm::vec3 normal;
+	alignas(16)	glm::ivec3 position;
+	
+	int color;
+
+	uint32_t light_x;
+	uint32_t light_y;
+	uint32_t light_z;
+
+	uint32_t accum_count;
+};
 
 class SVO
 {
 	public:
-		SVO(glm::ivec3 min, glm::ivec3 max);
+		SVO(glm::ivec3 pos, int scale, bool leaf); // internal nodes
 		~SVO();
 
-		bool insert(GPUVoxel &voxel, int depth);
-		bool contains(GPUVoxel &voxel);
-		void subdivide();
+		void	insert(GPUVoxel &voxel);
+		void	flatten(std::vector<FlatSVONode> &flatNodes, std::vector<GPUVoxel> &flatVoxels);
 
-		void flatten(std::vector<FlatSVONode> &flatNodes, std::vector<GPUVoxel> &flatVoxels);
-
-		void print(int level);
+		void	print(int level);
 		
-		bool isLeaf();
-
-		int	getNodeCount();
+		bool	isLeaf();
+		int		getNodeCount();
 		
 
 
 	private:
-		SVO *_children[8];
+		bool 		_leaf;
 
-		std::vector<GPUVoxel> _voxels;
+		SVO			*_children[64];
+		uint64_t	_child_mask;
 
-		glm::ivec3 _min;
-		glm::ivec3 _max;
+		GPUVoxel	_voxels[512]; // 8x8x8 leaf size
+		uint32_t	_voxel_count;
 
-		bool _empty;
-		bool _leaf;
+		glm::ivec3	_pos;
+		int			_scale;
+
 
 };
 

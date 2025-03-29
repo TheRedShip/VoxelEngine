@@ -83,6 +83,7 @@
 		"filesystem": "cpp",
 		"forward_list": "cpp",
 		"codecvt": "cpp",
-		"queue": "cpp"
+		"queue": "cpp",
+		"bitset": "cpp"
 	}
 }

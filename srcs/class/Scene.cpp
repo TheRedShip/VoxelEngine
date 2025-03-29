@@ -64,7 +64,7 @@ void	Scene::placeModel(VoxModel &model, glm::ivec3 position, std::vector<GPUVoxe
 
 void Scene::parseScene(std::string &name)
 {
-	SVO *root = new SVO(glm::ivec3(0), glm::ivec3(VOXEL_DIM));
+	SVO *root = new SVO(glm::ivec3(0), 512, false);
 
 	std::vector<GPUVoxel> voxel_data;
 	voxel_data.resize(VOXEL_DIM * VOXEL_DIM * VOXEL_DIM);
@@ -77,27 +77,9 @@ void Scene::parseScene(std::string &name)
 	}
 	else
 		std::cout << "Failed to parse vox model" << std::endl;
-	
-	for (int z = 0; z < VOXEL_DIM; ++z)
-	{
-		for (int y = 0; y < VOXEL_DIM; ++y)
-		{
-			for (int x = 0; x < VOXEL_DIM; ++x)
-			{
-				int index_data = (x + VOXEL_DIM * (y + VOXEL_DIM * z));
-			
-				if (y <= 2)
-				{
-					int r = 20;
-					int g = 100 + rand() % 25;
-					int b = 20;
-					
-					voxel_data[index_data].color = (r << 24) | (g << 16) | (b << 8) | 0xFF;
-				}
 
-			}
-		}
-	}
+	int index_data = 0 + VOXEL_DIM * (0 + VOXEL_DIM * 0);
+	voxel_data[index_data].color = 0xFF0000FF;
 
 	//count time to insert voxels in ms
 	auto start = std::chrono::high_resolution_clock::now();
@@ -141,7 +123,7 @@ void Scene::parseScene(std::string &name)
 
 					voxel.normal = glm::normalize(voxel.normal);
 
-					root->insert(voxel, 16);
+					root->insert(voxel);
 				}
 			}
 		}
@@ -151,23 +133,25 @@ void Scene::parseScene(std::string &name)
 
 	std::cout << "Voxels inserted: " << count << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() << "ms" << std::endl;
 
-	// for (int i = 0; i < flatNodes.size(); i++)
-	// {
-	// 	std::cout << "Node: " << i << std::endl;
-	// 	std::cout << "Min: " << flatNodes[i].min.x << " " << flatNodes[i].min.y << " " << flatNodes[i].min.z << std::endl;
-	// 	std::cout << "Max: " << flatNodes[i].max.x << " " << flatNodes[i].max.y << " " << flatNodes[i].max.z << std::endl;
-	// 	std::cout << "Child offset: " << flatNodes[i].childOffset << std::endl;
-	// 	std::cout << "Voxel index: " << flatNodes[i].voxelIndex << std::endl;
-	// 	std::cout << "Voxel count: " << flatNodes[i].voxelCount << std::endl;
-	// 	std::cout << "Child mask: " << (int)flatNodes[i].childMask << std::endl;
-	// 	for (int j = 0; j < flatNodes[i].voxelCount; j++)
-	// 	{
-	// 		std::cout << "Voxel: " << flatVoxels[flatNodes[i].voxelIndex + j].position.x << " " << flatVoxels[flatNodes[i].voxelIndex + j].position.y << " " << flatVoxels[flatNodes[i].voxelIndex + j].position.z << std::endl;
-	// 	}
-	// 	std::cout << std::endl;
-	// }
+	for (int i = 0; i < flatNodes.size(); i++)
+	{
+		std::cout << "Node: " << i << std::endl;
+		std::cout << "pos: " << flatNodes[i].pos.x << " " << flatNodes[i].pos.y << " " << flatNodes[i].pos.z << std::endl;
+		std::cout << "scale: " << flatNodes[i].scale << std::endl;
+		std::cout << "Child offset: " << flatNodes[i].child_offset << std::endl;
+		//show child mask in binary
+		std::cout << "Child mask: " << std::bitset<64>(flatNodes[i].child_mask) << std::endl;
+		std::cout << "Voxel index: " << flatNodes[i].voxel_index << std::endl;
+		std::cout << "Voxel count: " << flatNodes[i].voxel_count << std::endl;
+		for (int j = 0; j < flatNodes[i].voxel_count; j++)
+		{
+			if (flatVoxels[flatNodes[i].voxel_index + j].color != 0)
+				std::cout << "Voxel: " << flatVoxels[flatNodes[i].voxel_index + j].position.x << " " << flatVoxels[flatNodes[i].voxel_index + j].position.y << " " << flatVoxels[flatNodes[i].voxel_index + j].position.z << std::endl;
+		}
+		std::cout << std::endl;
+	}
 
-	// root->print(0);
+	root->print(0);
 	voxel_data.clear();
 }
 

@@ -43,6 +43,7 @@
 # include <iomanip>
 # include <fstream>
 # include <sstream>
+# include <bitset>
 # include <chrono>
 # include <vector>
 # include <string>

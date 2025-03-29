@@ -12,15 +12,10 @@
 
 #include "SVO.hpp"
 
-SVO::SVO(glm::ivec3 min, glm::ivec3 max)
+SVO::SVO(glm::ivec3 pos, int scale, bool leaf) : _leaf(leaf), _child_mask(0), _pos(pos), _scale(scale)
 {
-	_min = min;
-	_max = max;
-	
+	memset(_voxels, 0, sizeof(_voxels));
 	memset(_children, 0, sizeof(_children));
-
-	_leaf = true;
-	_empty = true;
 }
 
 SVO::~SVO()
@@ -32,71 +27,46 @@ SVO::~SVO()
 	}
 }
 
-bool SVO::insert(GPUVoxel &voxel, int depth)
+void SVO::insert(GPUVoxel &voxel)
 {
-	if (!this->contains(voxel))
-		return (false);
-
-	_empty = false;
-
-	if (depth == 0)
-	{
-		_voxels.push_back(voxel);
-		return (true);
-	}
-
-	if (_leaf && _voxels.size() < 8)
-	{
-		_voxels.push_back(voxel);
-		return (true);
-	}
-
 	if (_leaf)
-		this->subdivide();
-
-	for (int i = 0; i < 8; i++)
 	{
-		if (_children[i]->insert(voxel, depth - 1))
-			return (true);
-	}
+		glm::ivec3 local_pos = voxel.position - _pos;
 
-	return (false);
-}
-
-void SVO::subdivide()
-{
-	glm::ivec3 mid = (_min + _max) / 2;
-
-	_children[0] = new SVO(glm::ivec3(_min.x, _min.y, _min.z), glm::ivec3(mid.x, mid.y, mid.z));
-	_children[1] = new SVO(glm::ivec3(mid.x, _min.y, _min.z), glm::ivec3(_max.x, mid.y, mid.z));
-	_children[2] = new SVO(glm::ivec3(_min.x, mid.y, _min.z), glm::ivec3(mid.x, _max.y, mid.z));
-	_children[3] = new SVO(glm::ivec3(mid.x, mid.y, _min.z), glm::ivec3(_max.x, _max.y, mid.z));
-	_children[4] = new SVO(glm::ivec3(_min.x, _min.y, mid.z), glm::ivec3(mid.x, mid.y, _max.z));
-	_children[5] = new SVO(glm::ivec3(mid.x, _min.y, mid.z), glm::ivec3(_max.x, mid.y, _max.z));
-	_children[6] = new SVO(glm::ivec3(_min.x, mid.y, mid.z), glm::ivec3(mid.x, _max.y, _max.z));
-	_children[7] = new SVO(glm::ivec3(mid.x, mid.y, mid.z), glm::ivec3(_max.x, _max.y, _max.z));
-
-	for (GPUVoxel &voxel : _voxels)
-	{
-		for (int i = 0; i < 8; i++)
+		if (local_pos.x < 0 || local_pos.y < 0 || local_pos.z < 0 || local_pos.x >= LEAF_SIZE || local_pos.y >= LEAF_SIZE || local_pos.z >= LEAF_SIZE)
 		{
-			if (_children[i]->contains(voxel))
-			{
-				_children[i]->insert(voxel, 0);
-				break;
-			}
+			std::cerr << "Voxel out of bounds: " << voxel.position.x << " " << voxel.position.y << " " << voxel.position.z << std::endl;
+			return ;
 		}
+
+		int index = local_pos.x + local_pos.y * LEAF_SIZE + local_pos.z * LEAF_SIZE * LEAF_SIZE;
+		_voxels[index] = voxel;
+
+		_voxel_count++;
+
+		return ;
 	}
 
-	_voxels.clear();
-	_leaf = false;
-}
+	// 4x4x4 division
+	int child_scale = _scale / 4;
+	glm::ivec3 relative = (voxel.position - _pos) / child_scale;
+	relative = glm::clamp(relative, glm::ivec3(0), glm::ivec3(3)); // Ensure it's within bounds
 
-bool SVO::contains(GPUVoxel &voxel)
-{
-	return (voxel.position.x >= _min.x && voxel.position.x < _max.x &&
-		voxel.position.y >= _min.y && voxel.position.y < _max.y &&
-		voxel.position.z >= _min.z && voxel.position.z < _max.z);
+	int child_index = relative.x + relative.y * 4 + relative.z * 16; // 4x4x4 grid
+
+	glm::ivec3 childPos = _pos + glm::ivec3(relative.x * child_scale,
+												relative.y * child_scale,
+												relative.z * child_scale);
+
+	if (_children[child_index] == nullptr)
+	{
+		bool is_leaf = child_scale <= LEAF_SIZE;
+		_children[child_index] = new SVO(childPos, child_scale, is_leaf);
+
+		_child_mask |= (1ULL << child_index);
+	}
+
+	_children[child_index]->insert(voxel);
 }
 
 void SVO::flatten(std::vector<FlatSVONode> &flatNodes, std::vector<GPUVoxel> &flatVoxels)
@@ -105,12 +75,12 @@ void SVO::flatten(std::vector<FlatSVONode> &flatNodes, std::vector<GPUVoxel> &fl
 
 	FlatSVONode &rootNode = flatNodes[0];
 	
-	rootNode.min = _min;
-	rootNode.max = _max;
-	rootNode.childMask = 0;
-	rootNode.voxelCount = 0;
-	rootNode.voxelIndex = -1;
-	rootNode.childOffset = -1;
+	rootNode.pos = _pos;
+	rootNode.scale = _scale;
+	rootNode.child_mask = 0;
+	rootNode.child_offset = 0;
+	rootNode.voxel_index = 0;
+	rootNode.voxel_count = 0;
 	
 	std::queue<std::pair<SVO *, int>> nodeQueue;
 	nodeQueue.push({this, 0});
@@ -125,10 +95,10 @@ void SVO::flatten(std::vector<FlatSVONode> &flatNodes, std::vector<GPUVoxel> &fl
 		if (currentNode->_leaf)
 		{
 			// Handle leaf node
-			if (!currentNode->_voxels.empty())
+			if (currentNode->_voxel_count != 0)
 			{
-				flatNode.voxelIndex = flatVoxels.size();
-				flatNode.voxelCount = currentNode->_voxels.size();
+				flatNode.voxel_index = flatVoxels.size();
+				flatNode.voxel_count = currentNode->_voxel_count;
 				
 				for (GPUVoxel &voxel : currentNode->_voxels)
 					flatVoxels.push_back(voxel);
@@ -136,38 +106,37 @@ void SVO::flatten(std::vector<FlatSVONode> &flatNodes, std::vector<GPUVoxel> &fl
 		}
 		else
 		{
-			uint32_t childMask = 0;
+			uint64_t child_mask = 0;
 			
-			for (int i = 0; i < 8; i++)
+			for (int i = 0; i < 64; i++)
 			{
-				if (!currentNode->_children[i]->_empty)
-					childMask |= 1 << i;
+				if (currentNode->_children[i])
+					child_mask |= 1 << i;
 			}
 			
-			flatNode.childOffset = flatNodes.size();
-			flatNode.childMask = childMask;
+			flatNode.child_offset = flatNodes.size();
+			flatNode.child_mask = child_mask;
 			
-			// Reserve space for all children
 			int startIndex = flatNodes.size();
-			flatNodes.resize(startIndex + 8, {}); // Add 8 empty nodes
+			flatNodes.resize(startIndex + 64, {}); // Add 8 empty nodes
 			
 			// Initialize children and add them to the queue
-			for (int i = 0; i < 8; i++)
+			for (int i = 0; i < 64; i++)
 			{
 				int childFlatIndex = startIndex + i;
 				
 				// Initialize default values
 				FlatSVONode& childFlatNode = flatNodes[childFlatIndex];
-				childFlatNode.voxelIndex = -1;
-				childFlatNode.childOffset = -1;
-				childFlatNode.voxelCount = 0;
-				childFlatNode.childMask = 0;
+				childFlatNode.voxel_index = 0;
+				childFlatNode.voxel_count = 0;
+				childFlatNode.child_offset = 0;
+				childFlatNode.child_mask = 0;
 				
 				if (currentNode->_children[i])
 				{
 					// Set proper values
-					childFlatNode.min = currentNode->_children[i]->_min;
-					childFlatNode.max = currentNode->_children[i]->_max;
+					childFlatNode.pos = currentNode->_children[i]->_pos;
+					childFlatNode.scale = currentNode->_children[i]->_scale;
 					
 					// Add to queue for processing
 					nodeQueue.push({currentNode->_children[i], childFlatIndex});
@@ -197,14 +166,23 @@ void SVO::print(int level)
 {
     std::string indent(level * 4, ' ');
 
+	int voxel_count = 0;
+	for (int i = 0; i < LEAF_SIZE * LEAF_SIZE * LEAF_SIZE; i++)
+		if (_voxels[i].color != 0)
+			voxel_count++;
+
     // Print node info: whether it's a leaf and number of voxels stored.
     std::cout << indent << "SVO Node (" << (_leaf ? "Leaf" : "Internal") 
-              << "), Voxel count: " << _voxels.size() << "\n";
+              << "), Voxel count: " << voxel_count << " at position ("
+			  << _pos.x << ", " << _pos.y << ", " << _pos.z << "), Scale: "
+			  << _scale << " and child mask: " << std::bitset<64>(_child_mask) << "\n";
 
     // Optionally, print voxel positions if the node is a leaf.
     if (_leaf) {
-        for (const auto &voxel : _voxels) {
-            std::cout << indent << "  Voxel: (" 
+        for (const auto &voxel : _voxels)
+		{
+			if (voxel.color != 0)
+            	std::cout << indent << "  Voxel: (" 
                       << voxel.position.x << ", " 
                       << voxel.position.y << ", " 
                       << voxel.position.z << ")\n";
@@ -213,7 +191,7 @@ void SVO::print(int level)
     
     // Recursively print children nodes if internal.
     if (!_leaf) {
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 64; i++) {
             if (_children[i]) {
                 _children[i]->print(level + 1);
             }

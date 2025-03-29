@@ -1,4 +1,6 @@
 
+#extension GL_NV_gpu_shader5 : enable
+
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(binding = 0, rgba32f) uniform image2D output_image;
 
@@ -12,6 +14,7 @@ struct GPUVoxel
 {
 	vec3 normal;
 	ivec3 position;
+
 	int color;
 	
 	uint light_x;
@@ -22,13 +25,15 @@ struct GPUVoxel
 
 struct GPUFlatVoxel
 {
-	ivec3 min;
-	ivec3 max;
-    int childOffset;
-    int voxelIndex;
-    int voxelCount;
+	ivec3	pos;
 
-	uint childMask;
+	uint64_t 	child_mask;
+	uint32_t 	child_offset;
+	
+	uint32_t 	voxel_index;
+	uint32_t 	voxel_count;
+	
+	int			scale;
 };
 
 struct GPUCamera
@@ -82,7 +87,7 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 	color_light[0] = vec3(1.);
 	color_light[1] = vec3(0.);
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		hitInfo hit;
 		if (!traverseSVO(ray, hit, stats))
@@ -171,26 +176,26 @@ void main()
 	int voxel_index = -1;
 	vec3[2] color_light = pathtrace(ray, rng_state, voxel_index);
 
-	vec3 final_light;
+	// vec3 final_light;
 
-	if (voxel_index != -1)
-	{
-		if (flatVoxels[voxel_index].accum_count < 20000)
-		{
-			atomicAdd(flatVoxels[voxel_index].light_x, int(color_light[1].x * color_light[0].x * 255.));
-			atomicAdd(flatVoxels[voxel_index].light_y, int(color_light[1].y * color_light[0].y * 255.));
-			atomicAdd(flatVoxels[voxel_index].light_z, int(color_light[1].z * color_light[0].z * 255.));
+	// if (voxel_index != -1)
+	// {
+	// 	if (flatVoxels[voxel_index].accum_count < 20000)
+	// 	{
+	// 		atomicAdd(flatVoxels[voxel_index].light_x, int(color_light[1].x * color_light[0].x * 255.));
+	// 		atomicAdd(flatVoxels[voxel_index].light_y, int(color_light[1].y * color_light[0].y * 255.));
+	// 		atomicAdd(flatVoxels[voxel_index].light_z, int(color_light[1].z * color_light[0].z * 255.));
 
-			atomicAdd(flatVoxels[voxel_index].accum_count, 1);
-		}
+	// 		atomicAdd(flatVoxels[voxel_index].accum_count, 1);
+	// 	}
 
-		final_light = vec3(flatVoxels[voxel_index].light_x / 255.0, 
-						   flatVoxels[voxel_index].light_y / 255.0,
-						   flatVoxels[voxel_index].light_z / 255.0) / float(flatVoxels[voxel_index].accum_count);
-	}
-	else
-		final_light = color_light[1];
+	// 	final_light = vec3(flatVoxels[voxel_index].light_x / 255.0, 
+	// 					   flatVoxels[voxel_index].light_y / 255.0,
+	// 					   flatVoxels[voxel_index].light_z / 255.0) / float(flatVoxels[voxel_index].accum_count);
+	// }
+	// else
+	// 	final_light = color_light[1];
 
 
-	imageStore(output_image, pixel_coords, vec4(final_light, 1.0));
+	imageStore(output_image, pixel_coords, vec4(color_light[1], 1.0));
 }

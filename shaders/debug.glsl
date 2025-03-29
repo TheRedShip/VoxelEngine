@@ -1,3 +1,4 @@
+#extension GL_NV_gpu_shader5 : enable
 
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(binding = 0, rgba32f) uniform image2D output_image;
@@ -12,24 +13,26 @@ struct GPUVoxel
 {
 	vec3 normal;
 	ivec3 position;
-	int color;
 
+	int color;
+	
 	uint light_x;
 	uint light_y;
 	uint light_z;
-
 	uint accum_count;
 };
 
 struct GPUFlatVoxel
 {
-	ivec3 min;
-	ivec3 max;
-    int childOffset;
-    int voxelIndex;
-    int voxelCount;
+	ivec3	pos;
 
-	uint childMask;
+	uint64_t 	child_mask;
+	uint32_t 	child_offset;
+	
+	uint32_t 	voxel_index;
+	uint32_t 	voxel_count;
+	
+	int			scale;
 };
 
 struct GPUCamera
@@ -95,8 +98,10 @@ vec3 debugColor(Ray ray)
 	hitInfo hit;
 
 
-	traverseSVO(ray, hit, stats);
-
+	if (traverseSVO(ray, hit, stats))
+		return (vec3(1.));
+	return (vec3(0.));
+	
 	float node_display = float(stats.nodes) / float(debug.box_treshold);
 	float voxel_display = float(stats.voxels) / float(debug.voxel_treshold);
 

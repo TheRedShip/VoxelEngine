@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   RT.cpp                                             :+:      :+:    :+:   */
+/*   RV.cpp                                             :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/09/27 14:51:49 by TheRed            #+#    #+#             */
-/*   Updated: 2025/03/17 16:58:09 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/30 16:56:56 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 		args = argv[1];
 
 	Scene		scene;
-	Window		window(&scene, WIDTH, HEIGHT, "RedVoxel", 0);
+	Window		window(&scene, WIDTH, HEIGHT, "RedVoxel", 5);
 	
 	scene.parseScene(args);
 

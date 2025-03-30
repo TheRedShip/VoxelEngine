@@ -6,7 +6,7 @@
 /*   By: ycontre <ycontre@student.42.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/23 18:29:41 by ycontre           #+#    #+#             */
-/*   Updated: 2025/03/28 16:01:16 by ycontre          ###   ########.fr       */
+/*   Updated: 2025/03/30 17:03:24 by ycontre          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -139,23 +139,24 @@ void Scene::parseScene(std::string &name)
 
 	std::cout << "Voxels inserted: " << count << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() << "ms" << std::endl;
 
-	// for (int i = 0; i < flatNodes.size(); i++)
-	// {
-	// 	std::cout << "Node: " << i << std::endl;
-	// 	std::cout << "pos: " << flatNodes[i].pos.x << " " << flatNodes[i].pos.y << " " << flatNodes[i].pos.z << std::endl;
-	// 	std::cout << "scale: " << flatNodes[i].scale << std::endl;
-	// 	std::cout << "Child offset: " << flatNodes[i].child_offset << std::endl;
-	// 	//show child mask in binary
-	// 	std::cout << "Child mask: " << std::bitset<64>(flatNodes[i].child_mask) << std::endl;
-	// 	std::cout << "Voxel index: " << flatNodes[i].voxel_index << std::endl;
-	// 	std::cout << "Voxel count: " << flatNodes[i].voxel_count << std::endl;
-	// 	for (int j = 0; j < flatNodes[i].voxel_count; j++)
-	// 	{
-	// 		if (flatVoxels[flatNodes[i].voxel_index + j].color != 0)
-	// 			std::cout << "Voxel: " << flatVoxels[flatNodes[i].voxel_index + j].position.x << " " << flatVoxels[flatNodes[i].voxel_index + j].position.y << " " << flatVoxels[flatNodes[i].voxel_index + j].position.z << " with color " << std::hex << flatVoxels[flatNodes[i].voxel_index + j].color << std::dec << std::endl;
-	// 	}
-	// 	std::cout << std::endl;
-	// }
+	for (uint i = 0; i < flatNodes.size(); i++)
+	{
+		std::cout << "Node: " << i << std::endl;
+		std::cout << "pos: " << flatNodes[i].pos.x << " " << flatNodes[i].pos.y << " " << flatNodes[i].pos.z << std::endl;
+		std::cout << "scale: " << flatNodes[i].scale << std::endl;
+		std::cout << "Child offset: " << flatNodes[i].child_offset << std::endl;
+		//show child mask in binary
+		std::cout << "Child mask: " << std::bitset<64>(flatNodes[i].child_mask) << std::endl;
+		std::cout << "Voxel index: " << flatNodes[i].voxel_index << std::endl;
+		std::cout << "Voxel count: " << flatNodes[i].voxel_count << std::endl;
+		for (uint j = 0; j < flatNodes[i].voxel_count; j++)
+		{
+			if (flatVoxels[flatNodes[i].voxel_index + j].color != 0)
+				std::cout << "Voxel: " << flatVoxels[flatNodes[i].voxel_index + j].position.x << " " << flatVoxels[flatNodes[i].voxel_index + j].position.y << " " << flatVoxels[flatNodes[i].voxel_index + j].position.z << " with color " << std::hex << flatVoxels[flatNodes[i].voxel_index + j].color << std::dec << std::endl;
+		}
+		std::cout << std::endl;
+		break;
+	}
 
 	// root->print(0);
 	voxel_data.clear();

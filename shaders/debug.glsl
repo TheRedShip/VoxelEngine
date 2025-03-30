@@ -97,7 +97,8 @@ vec3 debugColor(Ray ray)
 	Stats stats = Stats(0, 0);
 	hitInfo hit;
 	
-	bool has_hit = traverseSVO(ray, hit, stats);
+	traverseSVO(ray, hit, stats);
+	int index = treeDDA(flatSVONodes[1], ray.origin, ray.direction, stats);
 
 	float node_display = float(stats.nodes) / float(debug.box_treshold);
 	float voxel_display = float(stats.voxels) / float(debug.voxel_treshold);
@@ -107,7 +108,7 @@ vec3 debugColor(Ray ray)
 	switch (debug.mode)
 	{
 		case 0:
-			return (vec3(0.5) + vec3(voxel.normal) * 0.5);
+			return (index != -1 ? vec3(1.) : vec3(0.));
 		case 1:
 			return (node_display < 1. ? vec3(node_display) : vec3(1., 0., 0.));
 		case 2:

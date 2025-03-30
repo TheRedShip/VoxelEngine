@@ -149,7 +149,7 @@ bool leafDDA(GPUFlatVoxel leaf, vec3 origin, vec3 direction, inout hitInfo hit, 
 
 int treeDDA(GPUFlatVoxel node, vec3 origin, vec3 direction, inout Stats stats)
 {
-    ivec3 currentNode = ivec3(floor(origin));
+    ivec3 currentNode = ivec3(floor(origin / (node.scale / 4)));
 
     ivec3 steps = ivec3(0);
     vec3 tDelta = vec3(0.0);
@@ -171,24 +171,36 @@ int treeDDA(GPUFlatVoxel node, vec3 origin, vec3 direction, inout Stats stats)
 		}
 	}
 
-    for (int i = 0; i < 100; i++)
+    int axis = 0;
+
+    for (int i = 0; i < 512; i++)
     {
         stats.nodes++;
 
         if (currentNode.x < 0 || currentNode.y < 0 || currentNode.z < 0 ||
             currentNode.x >= 4 || currentNode.y >= 4 || currentNode.z >= 4)
-            return (false);
+            return (-1);
 
         int bitmask_index = currentNode.x + currentNode.y * 4 + currentNode.z * 4 * 4;
 
-        if (index < 0 || index >= 64)
-            return (false);
+        if (bitmask_index < 0 || bitmask_index >= 64)
+            return (-1);
 
         if ((node.child_mask & (1ul << bitmask_index)) != 0ul)
-        {
             return (bitmask_index);
-        }
+
+		if (tMax.x < tMax.y && tMax.x < tMax.z)
+			axis = 0;
+		else if (tMax.y < tMax.z)
+			axis = 1;
+		else
+			axis = 2;
+
+		currentNode[axis] += steps[axis];
+		tMax[axis] += tDelta[axis];
     }
+
+	return (-1);
 }
 
 
@@ -245,3 +257,15 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 
 	return (false);
 }
+
+// bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
+// {
+// 	int current_index = 0;
+
+// 	for (int i = 0; i < 1; i++)
+// 	{
+// 		GPUFlatVoxel node = flatSVONodes[current_index];
+		
+
+// 	}
+// }

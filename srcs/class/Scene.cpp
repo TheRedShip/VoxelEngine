@@ -17,7 +17,7 @@
 
 Scene::Scene()
 {
-	_camera = new Camera(glm::vec3(static_cast<float>((VOXEL_DIM / 2.0) * VOXEL_SIZE)), glm::vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
+	_camera = new Camera(glm::vec3(static_cast<float>(0.)), glm::vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
 
 	_gpu_debug.enabled = 0;
 	_gpu_debug.mode = 0;
@@ -73,13 +73,19 @@ void Scene::parseScene(std::string &name)
 	VoxModel model = VoxModel(name);
 	if (model.isParsed())
 	{
-		this->placeModel(model, glm::ivec3(VOXEL_DIM / 2), voxel_data);
+		this->placeModel(model, glm::ivec3(15), voxel_data);
 	}
 	else
 		std::cout << "Failed to parse vox model" << std::endl;
 
-	int index_data = 0 + VOXEL_DIM * (0 + VOXEL_DIM * 0);
-	voxel_data[index_data].color = 0xFF0000FF;
+	for (int x = 0; x < 7; x++)
+	{
+		for (int z = 0; z < 7; z++)
+		{
+			int index_data = x + VOXEL_DIM * (0 + VOXEL_DIM * z);
+			voxel_data[index_data].color = 0xFF0000FF;
+		}
+	}
 
 	//count time to insert voxels in ms
 	auto start = std::chrono::high_resolution_clock::now();
@@ -133,25 +139,25 @@ void Scene::parseScene(std::string &name)
 
 	std::cout << "Voxels inserted: " << count << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() << "ms" << std::endl;
 
-	for (int i = 0; i < flatNodes.size(); i++)
-	{
-		std::cout << "Node: " << i << std::endl;
-		std::cout << "pos: " << flatNodes[i].pos.x << " " << flatNodes[i].pos.y << " " << flatNodes[i].pos.z << std::endl;
-		std::cout << "scale: " << flatNodes[i].scale << std::endl;
-		std::cout << "Child offset: " << flatNodes[i].child_offset << std::endl;
-		//show child mask in binary
-		std::cout << "Child mask: " << std::bitset<64>(flatNodes[i].child_mask) << std::endl;
-		std::cout << "Voxel index: " << flatNodes[i].voxel_index << std::endl;
-		std::cout << "Voxel count: " << flatNodes[i].voxel_count << std::endl;
-		for (int j = 0; j < flatNodes[i].voxel_count; j++)
-		{
-			if (flatVoxels[flatNodes[i].voxel_index + j].color != 0)
-				std::cout << "Voxel: " << flatVoxels[flatNodes[i].voxel_index + j].position.x << " " << flatVoxels[flatNodes[i].voxel_index + j].position.y << " " << flatVoxels[flatNodes[i].voxel_index + j].position.z << std::endl;
-		}
-		std::cout << std::endl;
-	}
+	// for (int i = 0; i < flatNodes.size(); i++)
+	// {
+	// 	std::cout << "Node: " << i << std::endl;
+	// 	std::cout << "pos: " << flatNodes[i].pos.x << " " << flatNodes[i].pos.y << " " << flatNodes[i].pos.z << std::endl;
+	// 	std::cout << "scale: " << flatNodes[i].scale << std::endl;
+	// 	std::cout << "Child offset: " << flatNodes[i].child_offset << std::endl;
+	// 	//show child mask in binary
+	// 	std::cout << "Child mask: " << std::bitset<64>(flatNodes[i].child_mask) << std::endl;
+	// 	std::cout << "Voxel index: " << flatNodes[i].voxel_index << std::endl;
+	// 	std::cout << "Voxel count: " << flatNodes[i].voxel_count << std::endl;
+	// 	for (int j = 0; j < flatNodes[i].voxel_count; j++)
+	// 	{
+	// 		if (flatVoxels[flatNodes[i].voxel_index + j].color != 0)
+	// 			std::cout << "Voxel: " << flatVoxels[flatNodes[i].voxel_index + j].position.x << " " << flatVoxels[flatNodes[i].voxel_index + j].position.y << " " << flatVoxels[flatNodes[i].voxel_index + j].position.z << " with color " << std::hex << flatVoxels[flatNodes[i].voxel_index + j].color << std::dec << std::endl;
+	// 	}
+	// 	std::cout << std::endl;
+	// }
 
-	root->print(0);
+	// root->print(0);
 	voxel_data.clear();
 }
 

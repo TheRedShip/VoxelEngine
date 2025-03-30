@@ -96,21 +96,19 @@ vec3 debugColor(Ray ray)
 {
 	Stats stats = Stats(0, 0);
 	hitInfo hit;
-
-
-	if (traverseSVO(ray, hit, stats))
-		return (vec3(1.));
-	return (vec3(0.));
 	
+	bool has_hit = traverseSVO(ray, hit, stats);
+	// bool has_hit = leafDDA(flatSVONodes[129], ray.origin, ray.direction, stats);
+
 	float node_display = float(stats.nodes) / float(debug.box_treshold);
 	float voxel_display = float(stats.voxels) / float(debug.voxel_treshold);
 
-	GPUVoxel voxel = flatVoxels[hit.voxel_index];
+	// GPUVoxel voxel = flatVoxels[hit.voxel_index];
 
 	switch (debug.mode)
 	{
 		case 0:
-			return (voxel.normal);
+			return (has_hit ? vec3(1.) : vec3(0.));
 		case 1:
 			return (node_display < 1. ? vec3(node_display) : vec3(1., 0., 0.));
 		case 2:
@@ -154,7 +152,7 @@ void main()
 
 	vec2 jitter = randomPointInCircle(rng_state) * 1;
 
-	vec2 uv = ((vec2(pixel_coords) + jitter) / u_resolution) * 2.0 - 1.0;
+	vec2 uv = ((vec2(pixel_coords)) / u_resolution) * 2.0 - 1.0;
 	uv.x *= u_resolution.x / u_resolution.y;
 
 	Ray ray = initRay(uv, rng_state);

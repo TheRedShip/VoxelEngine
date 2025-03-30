@@ -98,24 +98,18 @@ void SVO::flatten(std::vector<FlatSVONode> &flatNodes, std::vector<GPUVoxel> &fl
 			if (currentNode->_voxel_count != 0)
 			{
 				flatNode.voxel_index = flatVoxels.size();
-				flatNode.voxel_count = currentNode->_voxel_count;
+				flatNode.voxel_count = 512; //currentNode->_voxel_count;
 				
 				for (GPUVoxel &voxel : currentNode->_voxels)
+				{
 					flatVoxels.push_back(voxel);
+				}
 			}
 		}
 		else
 		{
-			uint64_t child_mask = 0;
-			
-			for (int i = 0; i < 64; i++)
-			{
-				if (currentNode->_children[i])
-					child_mask |= 1 << i;
-			}
-			
 			flatNode.child_offset = flatNodes.size();
-			flatNode.child_mask = child_mask;
+			flatNode.child_mask = currentNode->_child_mask;
 			
 			int startIndex = flatNodes.size();
 			flatNodes.resize(startIndex + 64, {}); // Add 8 empty nodes

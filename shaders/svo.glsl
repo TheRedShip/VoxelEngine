@@ -147,6 +147,51 @@ bool leafDDA(GPUFlatVoxel leaf, vec3 origin, vec3 direction, inout hitInfo hit, 
     return (false);
 }
 
+int treeDDA(GPUFlatVoxel node, vec3 origin, vec3 direction, inout Stats stats)
+{
+    ivec3 currentNode = ivec3(floor(origin));
+
+    ivec3 steps = ivec3(0);
+    vec3 tDelta = vec3(0.0);
+    vec3 tMax = vec3(0.0);
+
+    for (int i = 0; i < 3; i++)
+	{
+		tDelta[i] = u_voxelSize / max(abs(direction[i]), 0.001);
+		steps[i] = int(sign(direction[i]));
+		if (direction[i] > 0.0)
+		{
+			float voxelBoundary = (float(currentNode[i]) + 1.0) * u_voxelSize;
+			tMax[i] = (voxelBoundary - origin[i]) / abs(direction[i]);
+		}
+		else
+		{
+			float voxelBoundary = float(currentNode[i]) * u_voxelSize;
+			tMax[i] = (origin[i] - voxelBoundary) / abs(direction[i]);
+		}
+	}
+
+    for (int i = 0; i < 100; i++)
+    {
+        stats.nodes++;
+
+        if (currentNode.x < 0 || currentNode.y < 0 || currentNode.z < 0 ||
+            currentNode.x >= 4 || currentNode.y >= 4 || currentNode.z >= 4)
+            return (false);
+
+        int bitmask_index = currentNode.x + currentNode.y * 4 + currentNode.z * 4 * 4;
+
+        if (index < 0 || index >= 64)
+            return (false);
+
+        if ((node.child_mask & (1ul << bitmask_index)) != 0ul)
+        {
+            return (bitmask_index);
+        }
+    }
+}
+
+
 struct stackSVO
 {
     int index;
@@ -161,7 +206,7 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 	int stack_ptr = 0;
 	stack[0] = stackSVO(0, 0.0);
 
-	while (stack_ptr >= 0)
+	while (stack_ptr >= 0) 
 	{
 		stackSVO current_stack = stack[stack_ptr--];
         

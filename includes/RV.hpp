@@ -17,7 +17,7 @@
 # define HEIGHT 1080
 
 # define VOXEL_DIM 512
-# define VOXEL_SIZE 0.1f
+# define VOXEL_SIZE 1.0f
 
 #define GLM_ENABLE_EXPERIMENTAL
 

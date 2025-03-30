@@ -87,7 +87,7 @@ bool RayAABBIntersection(Ray ray, vec3 boxMin, float scale, inout float tEntry, 
     return (tExit >= tEntry && tExit >= 0.0f);
 }
 
-bool leafDDA(GPUFlatVoxel leaf, vec3 origin, vec3 direction, inout Stats stats)
+bool leafDDA(GPUFlatVoxel leaf, vec3 origin, vec3 direction, inout hitInfo hit, inout Stats stats)
 {
     ivec3 currentVoxel = ivec3(floor(origin / u_voxelSize));
 
@@ -127,7 +127,11 @@ bool leafDDA(GPUFlatVoxel leaf, vec3 origin, vec3 direction, inout Stats stats)
             return false;
 
         if (flatVoxels[leaf.voxel_index + index].color != 0)
+        {
+            hit.voxel_index = int(leaf.voxel_index) + index;
+            // hit.position = vec3(currentVoxel) * u_voxelSize + vec3(0.5) * u_voxelSize;
             return (true);
+        }
 
 		if (tMax.x < tMax.y && tMax.x < tMax.z)
 			axis = 0;
@@ -151,7 +155,7 @@ struct stackSVO
 
 bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 {
-	hit.dist = 1e30;
+    hit.dist = 1e30;
 
 	stackSVO stack[32];
 	int stack_ptr = 0;
@@ -171,7 +175,7 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 
             localOrigin += 0.0001 * ray.direction; // Avoid self-intersection
 
-            if (leafDDA(node, localOrigin, ray.direction, stats))
+            if (leafDDA(node, localOrigin, ray.direction, hit, stats))
                 return (true);
 		}
 		else

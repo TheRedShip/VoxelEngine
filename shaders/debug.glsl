@@ -85,7 +85,7 @@ struct Ray {
 struct hitInfo
 {
 	vec3 position;
-	uint voxel_index;
+	int voxel_index;
 	float dist;
 };
 
@@ -98,17 +98,16 @@ vec3 debugColor(Ray ray)
 	hitInfo hit;
 	
 	bool has_hit = traverseSVO(ray, hit, stats);
-	// bool has_hit = leafDDA(flatSVONodes[129], ray.origin, ray.direction, stats);
 
 	float node_display = float(stats.nodes) / float(debug.box_treshold);
 	float voxel_display = float(stats.voxels) / float(debug.voxel_treshold);
 
-	// GPUVoxel voxel = flatVoxels[hit.voxel_index];
+	GPUVoxel voxel = flatVoxels[hit.voxel_index];
 
 	switch (debug.mode)
 	{
 		case 0:
-			return (has_hit ? vec3(1.) : vec3(0.));
+			return (vec3(0.5) + vec3(voxel.normal) * 0.5);
 		case 1:
 			return (node_display < 1. ? vec3(node_display) : vec3(1., 0., 0.));
 		case 2:

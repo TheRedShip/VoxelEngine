@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 		args = argv[1];
 
 	Scene		scene;
-	Window		window(&scene, WIDTH, HEIGHT, "RedVoxel", 5);
+	Window		window(&scene, WIDTH, HEIGHT, "RedVoxel", 0);
 	
 	scene.parseScene(args);
 

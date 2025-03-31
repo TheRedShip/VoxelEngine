@@ -147,9 +147,22 @@ bool leafDDA(GPUFlatVoxel leaf, vec3 origin, vec3 direction, inout hitInfo hit, 
     return (false);
 }
 
-int treeDDA(GPUFlatVoxel node, vec3 origin, vec3 direction, inout Stats stats)
+struct stackDDA
 {
-    ivec3 currentNode = ivec3(floor(origin / (node.scale / 4)));
+    vec3 origin;
+    vec3 tDelta;
+    vec3 tMax;
+    ivec3 pos;
+    ivec3 steps;
+    int node_index;
+};
+
+stackDDA getStackDDA(vec3 origin, vec3 direction, int node_index)
+{
+    GPUFlatVoxel node = flatSVONodes[node_index];
+
+    float node_size = node.scale / 4.0;
+    ivec3 current_node = ivec3(floor(origin / node_size));
 
     ivec3 steps = ivec3(0);
     vec3 tDelta = vec3(0.0);
@@ -157,52 +170,71 @@ int treeDDA(GPUFlatVoxel node, vec3 origin, vec3 direction, inout Stats stats)
 
     for (int i = 0; i < 3; i++)
 	{
-		tDelta[i] = u_voxelSize / max(abs(direction[i]), 0.001);
+		tDelta[i] = node_size / max(abs(direction[i]), 0.001);
 		steps[i] = int(sign(direction[i]));
 		if (direction[i] > 0.0)
 		{
-			float voxelBoundary = (float(currentNode[i]) + 1.0) * u_voxelSize;
-			tMax[i] = (voxelBoundary - origin[i]) / abs(direction[i]);
+			float voxel_boundary = (float(current_node[i]) + 1.0) * node_size;
+			tMax[i] = (voxel_boundary - origin[i]) / abs(direction[i]);
 		}
 		else
 		{
-			float voxelBoundary = float(currentNode[i]) * u_voxelSize;
-			tMax[i] = (origin[i] - voxelBoundary) / abs(direction[i]);
+			float voxel_boundary = float(current_node[i]) * node_size;
+			tMax[i] = (origin[i] - voxel_boundary) / abs(direction[i]);
 		}
 	}
 
-    int axis = 0;
-
-    for (int i = 0; i < 512; i++)
-    {
-        stats.nodes++;
-
-        if (currentNode.x < 0 || currentNode.y < 0 || currentNode.z < 0 ||
-            currentNode.x >= 4 || currentNode.y >= 4 || currentNode.z >= 4)
-            return (-1);
-
-        int bitmask_index = currentNode.x + currentNode.y * 4 + currentNode.z * 4 * 4;
-
-        if (bitmask_index < 0 || bitmask_index >= 64)
-            return (-1);
-
-        if ((node.child_mask & (1ul << bitmask_index)) != 0ul)
-            return (bitmask_index);
-
-		if (tMax.x < tMax.y && tMax.x < tMax.z)
-			axis = 0;
-		else if (tMax.y < tMax.z)
-			axis = 1;
-		else
-			axis = 2;
-
-		currentNode[axis] += steps[axis];
-		tMax[axis] += tDelta[axis];
-    }
-
-	return (-1);
+    return stackDDA(origin, tDelta, tMax, current_node, steps, node_index);
 }
 
+bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
+{
+    stackDDA stacks[4];
+    int stack_ptr = 0;
+
+    stacks[stack_ptr] = getStackDDA(ray.origin, ray.direction, 1);
+
+    while (stack_ptr >= 0)
+    {
+        stackDDA stack = stacks[stack_ptr--];
+        int current_index = stack.node_index;
+        GPUFlatVoxel node = flatSVONodes[current_index];
+
+        if (node.child_mask == 0) // leaf
+            return (true); //debug for now 
+
+        int axis = 0;
+
+        for (int i = 0; i < 256; i++)
+        {
+            if (stack.pos.x < 0 || stack.pos.y < 0 || stack.pos.z < 0 ||
+                stack.pos.x >= 4 || stack.pos.y >= 4 || stack.pos.z >= 4)
+                break;
+
+            int bitmask_index = stack.pos.x + stack.pos.y * 4 + stack.pos.z * 4 * 4;
+
+            if ((node.child_mask & (1ul << bitmask_index)) != 0ul)
+            {
+                stackDDA child_stack = getStackDDA(ray.origin, ray.direction, int(node.child_offset + bitmask_index));
+                stacks[++stack_ptr] = child_stack;
+
+                break ;
+            }
+
+            if (stack.tMax.x < stack.tMax.y && stack.tMax.x < stack.tMax.z)
+                axis = 0;
+            else if (stack.tMax.y < stack.tMax.z)
+                axis = 1;
+            else
+                axis = 2;
+
+            stack.pos[axis] += stack.steps[axis];
+            stack.tMax[axis] += stack.tDelta[axis];
+        }
+    }
+   
+	return (false);
+}
 
 struct stackSVO
 {
@@ -210,7 +242,7 @@ struct stackSVO
     float tEntry;
 };
 
-bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
+bool previousTraverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 {
     hit.dist = 1e30;
 
@@ -257,15 +289,3 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 
 	return (false);
 }
-
-// bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
-// {
-// 	int current_index = 0;
-
-// 	for (int i = 0; i < 1; i++)
-// 	{
-// 		GPUFlatVoxel node = flatSVONodes[current_index];
-		
-
-// 	}
-// }

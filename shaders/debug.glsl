@@ -99,6 +99,8 @@ vec3 debugColor(Ray ray)
 	
 	previousTraverseSVO(ray, hit, stats);
 
+	// ray = Ray(ray.origin, vec3(0., 0., -1.), 1.0 / vec3(0., 0., -1.));
+
 	bool has_hit = traverseSVO(ray, hit, stats);
 
 	float node_display = float(stats.nodes) / float(debug.box_treshold);

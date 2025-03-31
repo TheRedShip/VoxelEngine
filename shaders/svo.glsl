@@ -189,10 +189,10 @@ stackDDA getStackDDA(vec3 origin, vec3 direction, int node_index)
 
 bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 {
-    stackDDA stacks[4];
+    stackDDA stacks[8];
     int stack_ptr = 0;
 
-    stacks[stack_ptr] = getStackDDA(ray.origin, ray.direction, 1);
+    stacks[stack_ptr] = getStackDDA(ray.origin, ray.direction, 0);
 
     while (stack_ptr >= 0)
     {
@@ -209,13 +209,24 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
         {
             if (stack.pos.x < 0 || stack.pos.y < 0 || stack.pos.z < 0 ||
                 stack.pos.x >= 4 || stack.pos.y >= 4 || stack.pos.z >= 4)
-                break;
+                return (false);
 
             int bitmask_index = stack.pos.x + stack.pos.y * 4 + stack.pos.z * 4 * 4;
 
             if ((node.child_mask & (1ul << bitmask_index)) != 0ul)
             {
-                stackDDA child_stack = getStackDDA(ray.origin, ray.direction, int(node.child_offset + bitmask_index));
+                GPUFlatVoxel child = flatSVONodes[node.child_offset + bitmask_index];
+
+                vec3 new_t = stack.tMax - stack.tDelta;
+
+                float t = new_t[axis];
+                if (t < 0.)
+                    t = 0.;
+
+                vec3 new_origin = stack.origin + ray.direction * t;
+                new_origin += 0.0001 * ray.direction; // Avoid self-intersection
+
+                stackDDA child_stack = getStackDDA(new_origin, ray.direction, int(node.child_offset + bitmask_index));
                 stacks[++stack_ptr] = child_stack;
 
                 break ;

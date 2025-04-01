@@ -197,5 +197,5 @@ void main()
 	// 	final_light = color_light[1];
 
 
-	imageStore(output_image, pixel_coords, vec4(color_light[1], 1.0));
+	imageStore(output_image, pixel_coords, vec4(color_light[0] * color_light[1], 1.0));
 }

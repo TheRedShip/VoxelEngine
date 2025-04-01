@@ -155,13 +155,12 @@ struct stackDDA
     ivec3 pos;
     ivec3 steps;
     int node_index;
+    int axis;
 };
 
 stackDDA getStackDDA(vec3 origin, vec3 direction, int node_index)
 {
     GPUFlatVoxel node = flatSVONodes[node_index];
-
-//    vec3 origin = (global_origin - vec3(node.pos));
 
     float node_size = node.scale / 4.0;
     ivec3 current_node = ivec3(floor(origin / node_size));
@@ -172,40 +171,40 @@ stackDDA getStackDDA(vec3 origin, vec3 direction, int node_index)
 
     for (int i = 0; i < 3; i++)
 	{
-		tDelta[i] = node_size / max(abs(direction[i]), 0.001);
+		tDelta[i] = node_size / max(abs(direction[i]), 0.0001);
 		steps[i] = int(sign(direction[i]));
 		if (direction[i] > 0.0)
 		{
 			float voxel_boundary = (float(current_node[i]) + 1.0) * node_size;
-			tMax[i] = (voxel_boundary - origin[i]) / abs(direction[i]);
+			tMax[i] = (voxel_boundary - origin[i]) / max(abs(direction[i]), 0.0001);
 		}
 		else
 		{
 			float voxel_boundary = float(current_node[i]) * node_size;
-			tMax[i] = (origin[i] - voxel_boundary) / abs(direction[i]);
+			tMax[i] = (origin[i] - voxel_boundary) / max(abs(direction[i]), 0.0001);
 		}
 	}
 
-    return stackDDA(origin, tDelta, tMax, current_node, steps, node_index);
+    return stackDDA(origin, tDelta, tMax, current_node, steps, node_index, 0);
 }
 
 bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 {
-    stackDDA stacks[8];
+    stackDDA stacks[4];
     int stack_ptr = 0;
 
     stacks[stack_ptr] = getStackDDA(ray.origin, ray.direction, 0);
 
     while (stack_ptr >= 0)
     {
-        stackDDA stack = stacks[stack_ptr--];
+        stackDDA stack = stacks[stack_ptr];
         int current_index = stack.node_index;
         GPUFlatVoxel node = flatSVONodes[current_index];
 
         if (node.child_mask == 0) // leaf (decrement stack_ptr)
             return (true); //debug for now 
 
-        int axis = 0;
+        bool found_child = false;
 
         for (int i = 0; i < 256; i++)
         {
@@ -220,38 +219,44 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
                 GPUFlatVoxel child = flatSVONodes[node.child_offset + bitmask_index];
 
                 vec3 new_t = stack.tMax - stack.tDelta;
-
-                float t = new_t[axis];
-                if (current_index != 0)
-                {
-                    // return (false);
-                    // if (t > 10.)
-                    //     return (true);
-                    // return (false);
-                }
-
-                if (t < 0.)
-                    t = 0.;
+                float t = max(new_t[stack.axis], 0.);
 
                 vec3 new_origin = stack.origin + ray.direction * t;
-                new_origin += 0.0001 * ray.direction; // Avoid self-intersection
+                new_origin += 0.001 * ray.direction; // Avoid self-intersection
+
+                if (stack.tMax.x < stack.tMax.y && stack.tMax.x < stack.tMax.z)
+                    stack.axis = 0;
+                else if (stack.tMax.y < stack.tMax.z)
+                    stack.axis = 1;
+                else
+                    stack.axis = 2;
+                
+                stack.pos[stack.axis] += stack.steps[stack.axis];
+                stack.tMax[stack.axis] += stack.tDelta[stack.axis];
+
+                stacks[stack_ptr] = stack; // Save updated parent state
 
                 stackDDA child_stack = getStackDDA(new_origin - vec3(child.pos), ray.direction, int(node.child_offset + bitmask_index));
                 stacks[++stack_ptr] = child_stack;
+
+                found_child = true;
 
                 break ;
             }
 
             if (stack.tMax.x < stack.tMax.y && stack.tMax.x < stack.tMax.z)
-                axis = 0;
+                stack.axis = 0;
             else if (stack.tMax.y < stack.tMax.z)
-                axis = 1;
+                stack.axis = 1;
             else
-                axis = 2;
+                stack.axis = 2;
 
-            stack.pos[axis] += stack.steps[axis];
-            stack.tMax[axis] += stack.tDelta[axis];
+            stack.pos[stack.axis] += stack.steps[stack.axis];
+            stack.tMax[stack.axis] += stack.tDelta[stack.axis];
         }
+
+        if (!found_child)
+            --stack_ptr;
     }
    
 	return (false);

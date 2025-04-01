@@ -78,14 +78,24 @@ void Scene::parseScene(std::string &name)
 	else
 		std::cout << "Failed to parse vox model" << std::endl;
 
-	for (int x = 8; x < 16; x++)
+	for (int x = 0; x < 8; x++)
 	{
-		for (int z = 8; z < 16; z++)
+		for (int z = 0; z < 8; z++)
 		{
 			int index_data = x + VOXEL_DIM * (0 + VOXEL_DIM * z);
 			voxel_data[index_data].color = 0xFF0000FF;
 		}
 	}
+
+	for (int x = 64; x < 72; x++)
+	{
+		for (int z = 0; z < 8; z++)
+		{
+			int index_data = x + VOXEL_DIM * (0 + VOXEL_DIM * z);
+			voxel_data[index_data].color = 0xFF0000FF;
+		}
+	}
+
 
 	//count time to insert voxels in ms
 	auto start = std::chrono::high_resolution_clock::now();

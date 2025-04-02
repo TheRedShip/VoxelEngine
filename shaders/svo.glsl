@@ -221,6 +221,13 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
                 vec3 new_t = stack.tMax - stack.tDelta;
                 float t = max(new_t[stack.axis], 0.);
 
+                // if (current_index == 17 || current_index == 1)
+                // {
+                //     if (t < 25.)
+                //         return (true);
+                //     return (false);
+                // }
+
                 vec3 new_origin = stack.origin + ray.direction * t;
                 new_origin += 0.001 * ray.direction; // Avoid self-intersection
 
@@ -236,7 +243,9 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 
                 stacks[stack_ptr] = stack; // Save updated parent state
 
-                stackDDA child_stack = getStackDDA(new_origin - vec3(child.pos), ray.direction, int(node.child_offset + bitmask_index));
+                vec3 relative_child_pos = vec3(child.pos) - vec3(node.pos);
+
+                stackDDA child_stack = getStackDDA(new_origin - relative_child_pos, ray.direction, int(node.child_offset + bitmask_index));
                 stacks[++stack_ptr] = child_stack;
 
                 found_child = true;

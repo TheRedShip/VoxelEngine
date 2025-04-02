@@ -73,23 +73,23 @@ void Scene::parseScene(std::string &name)
 	VoxModel model = VoxModel(name);
 	if (model.isParsed())
 	{
-		this->placeModel(model, glm::ivec3(15), voxel_data);
+		this->placeModel(model, glm::ivec3(15, 15, 135), voxel_data);
 	}
 	else
 		std::cout << "Failed to parse vox model" << std::endl;
 
 	for (int x = 0; x < 8; x++)
 	{
-		for (int z = 0; z < 8; z++)
+		for (int z = 120; z < 128; z++)
 		{
 			int index_data = x + VOXEL_DIM * (0 + VOXEL_DIM * z);
 			voxel_data[index_data].color = 0xFF0000FF;
 		}
 	}
 
-	for (int x = 64; x < 72; x++)
+	for (int x = 0; x < 8; x++)
 	{
-		for (int z = 0; z < 8; z++)
+		for (int z = 128; z < 136; z++)
 		{
 			int index_data = x + VOXEL_DIM * (0 + VOXEL_DIM * z);
 			voxel_data[index_data].color = 0xFF0000FF;

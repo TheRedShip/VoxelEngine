@@ -162,7 +162,7 @@ stackDDA getStackDDA(vec3 origin, vec3 direction, int node_index)
 {
     GPUFlatVoxel node = flatSVONodes[node_index];
 
-    float node_size = node.scale / 4.0;
+    float node_size = node.scale * (u_voxelSize / 4.0);
     ivec3 current_node = ivec3(floor(origin / node_size));
 
     ivec3 steps = ivec3(0);
@@ -241,7 +241,7 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 
                 stacks[stack_ptr] = stack; // Save updated parent state
 
-                vec3 relative_child_pos = vec3(child.pos) - vec3(node.pos);
+                vec3 relative_child_pos = (vec3(child.pos) - vec3(node.pos)) * u_voxelSize;
 
                 stackDDA child_stack = getStackDDA(new_origin - relative_child_pos, ray.direction, int(node.child_offset + bitmask_index));
                 stacks[++stack_ptr] = child_stack;

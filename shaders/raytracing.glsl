@@ -106,7 +106,7 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 			float((voxel.color >> 8u) & 0xFFu) / 255.0,
 			float(voxel.color & 0xFFu) / 255.0);
 
-		color_light[0] *= voxel_color.rgb;
+		color_light[0] *= voxel.normal.rgb;
 
 		ray.origin = voxel.position + 0.5 + voxel.normal;
 		ray.direction = randomHemisphereDirection(voxel.normal, rng_state);
@@ -197,5 +197,5 @@ void main()
 	// 	final_light = color_light[1];
 
 
-	imageStore(output_image, pixel_coords, vec4(color_light[0] * color_light[1], 1.0));
+	imageStore(output_image, pixel_coords, vec4(color_light[0], 1.0));
 }

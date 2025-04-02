@@ -31,7 +31,7 @@ bool leafDDA(GPUFlatVoxel leaf, vec3 origin, vec3 direction, inout hitInfo hit, 
 
     int axis = 0;
 
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 32; i++)
 	{
         stats.voxels++;
         
@@ -119,7 +119,7 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
         int current_index = stack.node_index;
         GPUFlatVoxel node = flatSVONodes[current_index];
 
-        if (node.child_mask == 0) // leaf (decrement stack_ptr)
+        if (node.child_mask == 0)
         {
             if (leafDDA(node, stack.origin, ray.direction, hit, stats))
                 return (true);
@@ -129,8 +129,10 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 
         bool found_child = false;
 
-        for (int i = 0; i < 64; i++)
+        for (int i = 0; i < 16; i++)
         {
+            stats.nodes++;
+
             if (stack.pos.x < 0 || stack.pos.y < 0 || stack.pos.z < 0 ||
                 stack.pos.x >= 4 || stack.pos.y >= 4 || stack.pos.z >= 4)
                 break;
@@ -147,26 +149,12 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
                 vec3 new_origin = stack.origin + ray.direction * t;
                 new_origin += 0.001 * ray.direction; // Avoid self-intersection
 
-                if (stack.tMax.x < stack.tMax.y && stack.tMax.x < stack.tMax.z)
-                    stack.axis = 0;
-                else if (stack.tMax.y < stack.tMax.z)
-                    stack.axis = 1;
-                else
-                    stack.axis = 2;
-                
-                stack.pos[stack.axis] += stack.steps[stack.axis];
-                stack.tMax[stack.axis] += stack.tDelta[stack.axis];
-
-                stacks[stack_ptr] = stack; // Save updated parent state
-
                 vec3 relative_child_pos = (vec3(child.pos) - vec3(node.pos)) * u_voxelSize;
 
                 stackDDA child_stack = getStackDDA(new_origin - relative_child_pos, ray.direction, int(node.child_offset + bitmask_index));
                 stacks[++stack_ptr] = child_stack;
 
                 found_child = true;
-
-                break ;
             }
 
             if (stack.tMax.x < stack.tMax.y && stack.tMax.x < stack.tMax.z)
@@ -178,6 +166,12 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 
             stack.pos[stack.axis] += stack.steps[stack.axis];
             stack.tMax[stack.axis] += stack.tDelta[stack.axis];
+
+            if (found_child)
+            {
+                stacks[stack_ptr - 1] = stack;
+                break;
+            }
         }
 
         if (!found_child)

@@ -105,7 +105,9 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 	color_light[0] = vec3(1.);
 	color_light[1] = vec3(0.);
 
-	for (int i = 0; i < 2; i++)
+	vec3 light_dir = vec3(0.1, -1.0, -sin(u_time * 0.5) * 0.5);
+
+	for (int i = 0; i < 1; i++)
 	{
 		hitInfo hit;
 		if (!traverseSVO(ray, hit, stats))
@@ -122,8 +124,20 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 
 		color_light[0] *= unpack_color(voxel.color).rgb;
 
-		ray.origin = hit.position;
-		ray.direction = randomHemisphereDirection(voxel.normal, rng_state);
+		Ray shadow_ray;
+		shadow_ray.origin = (voxel.position + voxel.normal + 0.5) * u_voxelSize;
+		shadow_ray.direction = -light_dir;
+		shadow_ray.inv_direction = 1.0 / shadow_ray.direction;
+
+		float diffuse = max(dot(voxel.normal, -light_dir), 0.25);
+		color_light[1] += diffuse;
+
+		hitInfo temp;
+		if (traverseSVO(shadow_ray, temp, stats))
+			color_light[1] *= 0.5;
+
+		// ray.origin = (voxel.position + voxel.normal + 0.5) * u_voxelSize;
+		// ray.direction = randomHemisphereDirection(voxel.normal, rng_state);
 	}
 	
 	return (color_light);

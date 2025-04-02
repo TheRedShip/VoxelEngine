@@ -17,7 +17,7 @@
 
 Scene::Scene()
 {
-	_camera = new Camera(glm::vec3(static_cast<float>(10., 10., 10.)), glm::vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
+	_camera = new Camera(glm::vec3(static_cast<float>(1., 1., 1.)), glm::vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
 
 	_gpu_debug.enabled = 0;
 	_gpu_debug.mode = 0;
@@ -73,7 +73,7 @@ void Scene::parseScene(std::string &name)
 	VoxModel model = VoxModel(name);
 	if (model.isParsed())
 	{
-		this->placeModel(model, glm::ivec3(15, 15, 15), voxel_data);
+		this->placeModel(model, glm::ivec3(model.getSize()), voxel_data);
 	}
 	else
 		std::cout << "Failed to parse vox model" << std::endl;
@@ -118,7 +118,10 @@ void Scene::parseScene(std::string &name)
 						}
 					}
 
+					if (glm::length(voxel.normal) < 0.1f)
+						voxel.normal = glm::vec3(0.0f, 1.0f, 0.0f);
 					voxel.normal = glm::normalize(voxel.normal);
+
 
 					root->insert(voxel);
 				}

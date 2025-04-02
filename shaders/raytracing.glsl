@@ -107,7 +107,7 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 
 	vec3 light_dir = vec3(0.1, -1.0, -sin(u_time * 0.5) * 0.5);
 
-	for (int i = 0; i < 1; i++)
+	for (int i = 0; i < 2; i++)
 	{
 		hitInfo hit;
 		if (!traverseSVO(ray, hit, stats))
@@ -117,27 +117,19 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 			break;
 		}
 
-		if (i == 0)
-			voxel_index = hit.voxel_index;
-		
 		GPUVoxel voxel = flatVoxels[hit.voxel_index];
-
 		color_light[0] *= unpack_color(voxel.color).rgb;
 
-		Ray shadow_ray;
-		shadow_ray.origin = (voxel.position + voxel.normal + 0.5) * u_voxelSize;
-		shadow_ray.direction = -light_dir;
-		shadow_ray.inv_direction = 1.0 / shadow_ray.direction;
+		if (i == 0)
+			voxel_index = hit.voxel_index;
 
-		float diffuse = max(dot(voxel.normal, -light_dir), 0.25);
-		color_light[1] += diffuse;
+		if (voxel.accum_count > 20000)
+			break ;
 
-		hitInfo temp;
-		if (traverseSVO(shadow_ray, temp, stats))
-			color_light[1] *= 0.5;
+		
 
-		// ray.origin = (voxel.position + voxel.normal + 0.5) * u_voxelSize;
-		// ray.direction = randomHemisphereDirection(voxel.normal, rng_state);
+		ray.origin = (voxel.position + voxel.normal + 0.5) * u_voxelSize;
+		ray.direction = randomHemisphereDirection(voxel.normal, rng_state);
 	}
 	
 	return (color_light);
@@ -185,26 +177,26 @@ void main()
 	int voxel_index = -1;
 	vec3[2] color_light = pathtrace(ray, rng_state, voxel_index);
 
-	// vec3 final_light;
+	vec3 final_light;
 
-	// if (voxel_index != -1)
-	// {
-	// 	if (flatVoxels[voxel_index].accum_count < 20000)
-	// 	{
-	// 		atomicAdd(flatVoxels[voxel_index].light_x, int(color_light[1].x * color_light[0].x * 255.));
-	// 		atomicAdd(flatVoxels[voxel_index].light_y, int(color_light[1].y * color_light[0].y * 255.));
-	// 		atomicAdd(flatVoxels[voxel_index].light_z, int(color_light[1].z * color_light[0].z * 255.));
+	if (voxel_index != -1)
+	{
+		if (flatVoxels[voxel_index].accum_count < 20000)
+		{
+			atomicAdd(flatVoxels[voxel_index].light_x, int(color_light[1].x * color_light[0].x * 255.));
+			atomicAdd(flatVoxels[voxel_index].light_y, int(color_light[1].y * color_light[0].y * 255.));
+			atomicAdd(flatVoxels[voxel_index].light_z, int(color_light[1].z * color_light[0].z * 255.));
 
-	// 		atomicAdd(flatVoxels[voxel_index].accum_count, 1);
-	// 	}
+			atomicAdd(flatVoxels[voxel_index].accum_count, 1);
+		}
 
-	// 	final_light = vec3(flatVoxels[voxel_index].light_x / 255.0, 
-	// 					   flatVoxels[voxel_index].light_y / 255.0,
-	// 					   flatVoxels[voxel_index].light_z / 255.0) / float(flatVoxels[voxel_index].accum_count);
-	// }
-	// else
-	// 	final_light = color_light[1];
+		final_light = vec3(flatVoxels[voxel_index].light_x / 255.0, 
+						   flatVoxels[voxel_index].light_y / 255.0,
+						   flatVoxels[voxel_index].light_z / 255.0) / float(flatVoxels[voxel_index].accum_count);
+	}
+	else
+		final_light = color_light[1];
 
 
-	imageStore(output_image, pixel_coords, vec4(color_light[0] * color_light[1], 1.0));
+	imageStore(output_image, pixel_coords, vec4(final_light, 1.0));
 }

@@ -5,88 +5,6 @@ struct Stats
 	int voxels;
 };
 
-bool inBounds(ivec3 pos, ivec3 nodePos, int scale)
-{
-    return (pos.x >= nodePos.x && pos.y >= nodePos.y && pos.z >= nodePos.z &&
-            pos.x < nodePos.x + scale && pos.y < nodePos.y + scale && pos.z < nodePos.z + scale);
-}
-
-int getNodeIndex(ivec3 pos, inout Stats stats)
-{
-    uint currentIndex = 0;
-    
-    while (true)
-    {
-        GPUFlatVoxel node = flatSVONodes[currentIndex];
-        
-        if (!inBounds(pos, node.pos, node.scale))
-            return (-1);
-        
-        
-        if (node.child_mask == 0) // leaf
-            return int(currentIndex);
-        else
-        {
-            int childScale = node.scale / 4;
-
-            ivec3 rel = (pos - node.pos) / childScale;
-
-            rel.x = clamp(rel.x, 0, 3);
-            rel.y = clamp(rel.y, 0, 3);
-            rel.z = clamp(rel.z, 0, 3);
-            
-            uint childIndex = rel.x + rel.y * 4 + rel.z * 16;
-            
-            if ((node.child_mask & (1ul << childIndex)) == 0ul)
-                return (-1);
-            
-            uint childNodeIndex = node.child_offset + childIndex;
-            currentIndex = childNodeIndex;
-
-            stats.nodes++;
-        }
-    }
-    
-    return (-1);
-}
-
-bool IsSolidVoxelAt(ivec3 pos, inout Stats stats)
-{
-    int nodeIndex = getNodeIndex(pos, stats);
-    
-    if (nodeIndex == -1)
-        return (false);
-
-    GPUFlatVoxel node = flatSVONodes[nodeIndex];
-    
-    ivec3 localPos = pos - node.pos;
-    int index = localPos.x + localPos.y * 8 + localPos.z * 8 * 8;
-    
-    if (index < 0 || index >= node.voxel_count)
-        return false;
-    
-    return (flatVoxels[node.voxel_index + index].color != 0);
-}
-
-bool RayAABBIntersection(Ray ray, vec3 boxMin, float scale, inout float tEntry, inout float tExit)
-{
-    vec3 boxMax = boxMin + vec3(scale);
-    
-    vec3 t0s = (boxMin - ray.origin) * ray.inv_direction;
-    vec3 t1s = (boxMax - ray.origin) * ray.inv_direction;
-
-    vec3 tsmaller = min(t0s, t1s);
-    vec3 tbigger  = max(t0s, t1s);
-    
-    tEntry = max(max(tsmaller.x, tsmaller.y), tsmaller.z);
-    tExit  = min(min(tbigger.x, tbigger.y), tbigger.z);
-
-    if (tEntry < 0)
-        tEntry = 0.0f;
-    
-    return (tExit >= tEntry && tExit >= 0.0f);
-}
-
 bool leafDDA(GPUFlatVoxel leaf, vec3 origin, vec3 direction, inout hitInfo hit, inout Stats stats)
 {
     ivec3 currentVoxel = ivec3(floor(origin / u_voxelSize));
@@ -129,7 +47,7 @@ bool leafDDA(GPUFlatVoxel leaf, vec3 origin, vec3 direction, inout hitInfo hit, 
         if (flatVoxels[leaf.voxel_index + index].color != 0)
         {
             hit.voxel_index = int(leaf.voxel_index) + index;
-            // hit.position = vec3(currentVoxel) * u_voxelSize + vec3(0.5) * u_voxelSize;
+            hit.position = vec3(currentVoxel) * u_voxelSize + vec3(0.5) * u_voxelSize;
             return (true);
         }
 
@@ -211,7 +129,7 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 
         bool found_child = false;
 
-        for (int i = 0; i < 256; i++)
+        for (int i = 0; i < 64; i++)
         {
             if (stack.pos.x < 0 || stack.pos.y < 0 || stack.pos.z < 0 ||
                 stack.pos.x >= 4 || stack.pos.y >= 4 || stack.pos.z >= 4)
@@ -269,56 +187,3 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 	return (false);
 }
 
-struct stackSVO
-{
-    int index;
-    float tEntry;
-};
-
-bool previousTraverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
-{
-    hit.dist = 1e30;
-
-	stackSVO stack[32];
-	int stack_ptr = 0;
-	stack[0] = stackSVO(0, 0.0);
-
-	while (stack_ptr >= 0) 
-	{
-		stackSVO current_stack = stack[stack_ptr--];
-        
-        int current_index = current_stack.index;
-		GPUFlatVoxel node = flatSVONodes[current_index];
-		
-		if (node.child_mask == 0) // leaf
-		{
-			vec3 leaf_origin = ray.origin + ray.direction * current_stack.tEntry;
-            vec3 localOrigin = (leaf_origin - vec3(node.pos)) * u_voxelSize;
-
-            localOrigin += 0.0001 * ray.direction; // Avoid self-intersection
-
-            if (leafDDA(node, localOrigin, ray.direction, hit, stats))
-                return (true);
-		}
-		else
-		{
-			for (int i = 0; i < 64; i++)
-			{
-				if ((node.child_mask & (1ul << i)) != 0ul)
-				{
-					GPUFlatVoxel child = flatSVONodes[node.child_offset + i];
-
-					float dist = 0.;
-                    float tEntry = 0.;
-                    float tExit = 0.;
-					if (RayAABBIntersection(ray, child.pos, child.scale, tEntry, tExit))
-						stack[++stack_ptr] = stackSVO(int(node.child_offset + i), tEntry);
-
-					stats.nodes++;
-				}
-			}
-		}
-	}
-
-	return (false);
-}

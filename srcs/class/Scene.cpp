@@ -17,7 +17,7 @@
 
 Scene::Scene()
 {
-	_camera = new Camera(glm::vec3(static_cast<float>(0.)), glm::vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
+	_camera = new Camera(glm::vec3(static_cast<float>(10., 10., 10.)), glm::vec3(0.0f, 1.0f, 0.0f), 90.0f, 0.0f);
 
 	_gpu_debug.enabled = 0;
 	_gpu_debug.mode = 0;

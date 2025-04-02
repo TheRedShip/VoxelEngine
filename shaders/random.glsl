@@ -32,6 +32,10 @@ vec2 randomPointInCircle(inout uint rng_state)
 
 vec3 randomHemisphereDirection(vec3 normal, inout uint rng_state)
 {
-	vec3 direction = randomDirection(rng_state);
-	return (direction * sign(dot(normal, direction)));
+    vec3 direction = randomDirection(rng_state);
+    
+    if (dot(normal, direction) < 0.0)
+        direction = -direction;
+    
+    return direction;
 }

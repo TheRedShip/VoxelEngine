@@ -73,11 +73,29 @@ struct Ray
 struct hitInfo
 {
 	int voxel_index;
-	float dist;
+	vec3 position;
 };
 
 #include "shaders/random.glsl"
 #include "shaders/svo.glsl"
+
+vec4 unpack_color(uint packed_color)
+{
+    float r = float((packed_color >> 24u) & 0xFFu) / 255.0;
+    float g = float((packed_color >> 16u) & 0xFFu) / 255.0;
+    float b = float((packed_color >> 8u) & 0xFFu) / 255.0;
+    float a = float(packed_color & 0xFFu) / 255.0;
+    return vec4(r, g, b, a);
+}
+
+uint pack_color(vec3 color)
+{
+    uint r = uint(color.r * 255.0) & 0xFFu;
+    uint g = uint(color.g * 255.0) & 0xFFu;
+    uint b = uint(color.b * 255.0) & 0xFFu;
+    uint a = 0xFFu;
+    return (r << 24u) | (g << 16u) | (b << 8u) | a;
+}
 
 vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 {
@@ -87,11 +105,12 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 	color_light[0] = vec3(1.);
 	color_light[1] = vec3(0.);
 
-	for (int i = 0; i < 1; i++)
+	for (int i = 0; i < 2; i++)
 	{
 		hitInfo hit;
 		if (!traverseSVO(ray, hit, stats))
 		{
+			// color_light[1] += vec3(0.52, 0.8, 0.92);
 			color_light[1] += vec3(1.);
 			break;
 		}
@@ -100,17 +119,11 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 			voxel_index = hit.voxel_index;
 		
 		GPUVoxel voxel = flatVoxels[hit.voxel_index];
-		vec4 voxel_color = vec4(
-			float((voxel.color >> 24u) & 0xFFu) / 255.0,
-			float((voxel.color >> 16u) & 0xFFu) / 255.0,
-			float((voxel.color >> 8u) & 0xFFu) / 255.0,
-			float(voxel.color & 0xFFu) / 255.0);
 
-		color_light[0] *= voxel.normal.rgb;
+		color_light[0] *= unpack_color(voxel.color).rgb;
 
-		ray.origin = voxel.position + 0.5 + voxel.normal;
+		ray.origin = hit.position;
 		ray.direction = randomHemisphereDirection(voxel.normal, rng_state);
-		ray.inv_direction = 1.0 / ray.direction;
 	}
 	
 	return (color_light);
@@ -137,24 +150,6 @@ Ray initRay(vec2 uv, inout uint rng_state)
 	ray_direction = normalize(focal_point - origin);
 
 	return (Ray(origin, ray_direction, 1.0 / ray_direction));
-}
-
-vec4 unpack_color(uint packed_color)
-{
-    float r = float((packed_color >> 24u) & 0xFFu) / 255.0;
-    float g = float((packed_color >> 16u) & 0xFFu) / 255.0;
-    float b = float((packed_color >> 8u) & 0xFFu) / 255.0;
-    float a = float(packed_color & 0xFFu) / 255.0;
-    return vec4(r, g, b, a);
-}
-
-uint pack_color(vec3 color)
-{
-    uint r = uint(color.r * 255.0) & 0xFFu;
-    uint g = uint(color.g * 255.0) & 0xFFu;
-    uint b = uint(color.b * 255.0) & 0xFFu;
-    uint a = 0xFFu;
-    return (r << 24u) | (g << 16u) | (b << 8u) | a;
 }
 
 void main()
@@ -197,5 +192,5 @@ void main()
 	// 	final_light = color_light[1];
 
 
-	imageStore(output_image, pixel_coords, vec4(color_light[0], 1.0));
+	imageStore(output_image, pixel_coords, vec4(color_light[0] * color_light[1], 1.0));
 }

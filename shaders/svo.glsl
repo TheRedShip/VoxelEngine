@@ -202,7 +202,12 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
         GPUFlatVoxel node = flatSVONodes[current_index];
 
         if (node.child_mask == 0) // leaf (decrement stack_ptr)
-            return (true); //debug for now 
+        {
+            if (leafDDA(node, stack.origin, ray.direction, hit, stats))
+                return (true);
+            stack_ptr--;
+            continue;
+        }
 
         bool found_child = false;
 
@@ -220,13 +225,6 @@ bool traverseSVO(Ray ray, inout hitInfo hit, inout Stats stats)
 
                 vec3 new_t = stack.tMax - stack.tDelta;
                 float t = max(new_t[stack.axis], 0.);
-
-                // if (current_index == 17 || current_index == 1)
-                // {
-                //     if (t < 25.)
-                //         return (true);
-                //     return (false);
-                // }
 
                 vec3 new_origin = stack.origin + ray.direction * t;
                 new_origin += 0.001 * ray.direction; // Avoid self-intersection

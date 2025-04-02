@@ -102,6 +102,9 @@ vec3 debugColor(Ray ray)
 	// ray = Ray(ray.origin, vec3(0., 0., -1.), 1.0 / vec3(0., 0., -1.));
 
 	bool has_hit = traverseSVO(ray, hit, stats);
+	// vec3 test = floor(ray.origin / 8);
+
+	// bool has_hit = leafDDA(flatSVONodes[getNodeIndex(ivec3(ray.origin), stats)], ivec3(ray.origin) % 8, ray.direction, hit, stats);
 
 	float node_display = float(stats.nodes) / float(debug.box_treshold);
 	float voxel_display = float(stats.voxels) / float(debug.voxel_treshold);

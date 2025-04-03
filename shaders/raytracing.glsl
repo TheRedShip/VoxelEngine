@@ -107,7 +107,7 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 
 	vec3 light_dir = vec3(0.1, -1.0, -sin(u_time * 0.5) * 0.5);
 
-	for (int i = 0; i < 2; i++)
+	for (int i = 0; i < 3; i++)
 	{
 		hitInfo hit;
 		if (!traverseSVO(ray, hit, stats))
@@ -121,10 +121,13 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 		color_light[0] *= unpack_color(voxel.color).rgb;
 
 		if (i == 0)
+		{
 			voxel_index = hit.voxel_index;
+			if (voxel.accum_count > 20000)
+				break ;
+		}
 
-		if (voxel.accum_count > 20000)
-			break ;
+		
 
 		
 

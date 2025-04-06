@@ -69,6 +69,9 @@ Shader::Shader(GLenum type, const std::string &file_path)
 	_file_path = file_path;
 	_shader_id = 0;
 
+    _defines["WIDTH"] = std::to_string(WIDTH);
+    _defines["HEIGHT"] = std::to_string(HEIGHT);
+
 	this->compile();
 }
 

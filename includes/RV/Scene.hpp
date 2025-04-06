@@ -27,8 +27,6 @@ struct GPUMaterial
 	int						emission_texture_index;
 };
 
-struct GPUVoxel;
-
 struct GPUDebug
 {
 	int	enabled;
@@ -37,6 +35,15 @@ struct GPUDebug
 	int	box_treshold;
 };
 
+struct GPUVisibleVoxel
+{
+	uint32_t	voxel_per_pixel[WIDTH * HEIGHT];
+	uint32_t	visible_voxel_index[WIDTH * HEIGHT];
+	uint32_t	visible_voxel_flags[(WIDTH * HEIGHT) / 32];
+	uint32_t	visible_voxel_count;
+};
+
+struct GPUVoxel;
 struct FlatSVONode;
 
 class Camera;
@@ -57,16 +64,18 @@ class Scene
 		GPUDebug						&getDebug(void);
 
 		Camera							*getCamera(void) const;
+		GPUVisibleVoxel					*getVisibleVoxels(void);
 		GPUMaterial						getMaterial(int material_index);
 
 		std::vector<FlatSVONode> flatNodes;
 		std::vector<GPUVoxel> flatVoxels;
 		
 	private:
+		GPUDebug					_gpu_debug;
 
+		GPUVisibleVoxel				*_gpu_visible_voxels;
 		std::vector<GPUMaterial>	_gpu_materials;
 
-		GPUDebug					_gpu_debug;
 
 		Camera						*_camera;
 };

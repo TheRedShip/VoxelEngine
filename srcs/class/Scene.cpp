@@ -23,10 +23,14 @@ Scene::Scene()
 	_gpu_debug.mode = 0;
 	_gpu_debug.voxel_treshold = 1;
 	_gpu_debug.box_treshold = 1;
+
+	_gpu_visible_voxels = new GPUVisibleVoxel();
+	memset(_gpu_visible_voxels, 0, sizeof(GPUVisibleVoxel));
 }
 
 Scene::~Scene()
 {
+	delete (_gpu_visible_voxels);
 	delete (_camera);
 }
 
@@ -180,4 +184,9 @@ GPUMaterial	Scene::getMaterial(int material_index)
 	if (material_index < 0 || material_index >= (int)_gpu_materials.size())
 		throw std::runtime_error("Incorrect material index");
 	return (_gpu_materials[material_index]);
+}
+
+GPUVisibleVoxel	*Scene::getVisibleVoxels(void)
+{
+	return (_gpu_visible_voxels);
 }

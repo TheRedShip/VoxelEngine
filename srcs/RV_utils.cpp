@@ -74,6 +74,7 @@ std::vector<Buffer *>	createDataOnGPU(Scene &scene)
 
 	const std::vector<FlatSVONode> &flatNodes = scene.flatNodes;
 	const std::vector<GPUVoxel> &flatVoxels = scene.flatVoxels;
+	const GPUVisibleVoxel *visibleVoxels = scene.getVisibleVoxels();
 
 	std::vector<Buffer *> buffers;
 	
@@ -82,6 +83,8 @@ std::vector<Buffer *>	createDataOnGPU(Scene &scene)
 	
 	buffers.push_back(new Buffer(Buffer::Type::SSBO, 0, sizeof(FlatSVONode) * flatNodes.size(), flatNodes.data()));
 	buffers.push_back(new Buffer(Buffer::Type::SSBO, 1, sizeof(GPUVoxel) * flatVoxels.size(), flatVoxels.data()));
+	buffers.push_back(new Buffer(Buffer::Type::SSBO, 2, sizeof(GPUVisibleVoxel), visibleVoxels));
+	
 
 	return (buffers);
 }

@@ -1,8 +1,7 @@
 
 #extension GL_NV_gpu_shader5 : enable
 
-layout(local_size_x = 16, local_size_y = 16) in;
-layout(binding = 0, rgba32f) uniform image2D output_image;
+layout(local_size_x = 128) in;
 
 uniform vec2    u_resolution;
 uniform int		u_frameCount;
@@ -58,6 +57,14 @@ layout(std430, binding = 1) buffer VoxelFlatData
 	GPUVoxel flatVoxels[];
 };
 
+layout(std430, binding = 2) buffer VisibleVoxelData
+{
+	uint32_t	voxel_per_pixels[SHADER_WIDTH * SHADER_HEIGHT];
+	uint32_t 	visible_voxel_index[SHADER_WIDTH * SHADER_HEIGHT];
+	uint32_t 	visible_voxel_flags[(SHADER_WIDTH * SHADER_HEIGHT) / 32];
+	uint32_t 	visible_voxel_count;
+};
+
 layout(std140, binding = 0) uniform CameraData
 {
     GPUCamera camera;
@@ -78,24 +85,8 @@ struct hitInfo
 
 #include "shaders/random.glsl"
 #include "shaders/svo.glsl"
+#include "shaders/color.glsl"
 
-vec4 unpack_color(uint packed_color)
-{
-    float r = float((packed_color >> 24u) & 0xFFu) / 255.0;
-    float g = float((packed_color >> 16u) & 0xFFu) / 255.0;
-    float b = float((packed_color >> 8u) & 0xFFu) / 255.0;
-    float a = float(packed_color & 0xFFu) / 255.0;
-    return vec4(r, g, b, a);
-}
-
-uint pack_color(vec3 color)
-{
-    uint r = uint(color.r * 255.0) & 0xFFu;
-    uint g = uint(color.g * 255.0) & 0xFFu;
-    uint b = uint(color.b * 255.0) & 0xFFu;
-    uint a = 0xFFu;
-    return (r << 24u) | (g << 16u) | (b << 8u) | a;
-}
 
 vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 {
@@ -126,9 +117,6 @@ vec3[2] pathtrace(Ray ray, inout uint rng_state, inout int voxel_index)
 			if (voxel.accum_count > 20000)
 				break ;
 		}
-
-		
-
 		
 
 		ray.origin = (voxel.position + voxel.normal + 0.5) * u_voxelSize;
@@ -163,43 +151,74 @@ Ray initRay(vec2 uv, inout uint rng_state)
 
 void main()
 {
-	ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
-	if (pixel_coords.x >= int(u_resolution.x) || pixel_coords.y >= int(u_resolution.y))
-		return;
+	uint global_id = gl_GlobalInvocationID.x;
+    
+    if (global_id >= visible_voxel_count)
+        return ;
 
-	uint rng_state = uint(u_resolution.x) * uint(pixel_coords.y) + uint(pixel_coords.x);
+	uint voxel_index = visible_voxel_index[global_id];
+	
+	if (voxel_index == 0)
+		return ;
+
+	uint rng_state = uint(u_resolution.x) * uint(gl_GlobalInvocationID.y) + uint(gl_GlobalInvocationID.x);
 	rng_state = rng_state + u_frameCount * 719393;
+	
+	GPUVoxel voxel = flatVoxels[voxel_index];
 
-	vec2 jitter = randomPointInCircle(rng_state) * 1;
 
-	vec2 uv = ((vec2(pixel_coords)) / u_resolution) * 2.0 - 1.0;
-	uv.x *= u_resolution.x / u_resolution.y;
+	Ray ray;
+	hitInfo hit;
+	Stats stats;
 
-	Ray ray = initRay(uv, rng_state);
-
-	int voxel_index = -1;
-	vec3[2] color_light = pathtrace(ray, rng_state, voxel_index);
-
-	vec3 final_light;
-
-	if (voxel_index != -1)
+	for (int i = 0; i < (SHADER_WIDTH * SHADER_HEIGHT) / visible_voxel_count; i++)
 	{
-		if (flatVoxels[voxel_index].accum_count < 20000)
-		{
-			atomicAdd(flatVoxels[voxel_index].light_x, int(color_light[1].x * color_light[0].x * 255.));
-			atomicAdd(flatVoxels[voxel_index].light_y, int(color_light[1].y * color_light[0].y * 255.));
-			atomicAdd(flatVoxels[voxel_index].light_z, int(color_light[1].z * color_light[0].z * 255.));
+		ray.origin = (voxel.position + voxel.normal + 0.5) * u_voxelSize;
+		ray.direction = randomHemisphereDirection(voxel.normal, rng_state);
 
-			atomicAdd(flatVoxels[voxel_index].accum_count, 1);
+		if (!traverseSVO(ray, hit, stats))
+		{
+			atomicAdd(flatVoxels[voxel_index].light_x, 255);
+			atomicAdd(flatVoxels[voxel_index].light_y, 255);
+			atomicAdd(flatVoxels[voxel_index].light_z, 255);
 		}
 
-		final_light = vec3(flatVoxels[voxel_index].light_x / 255.0, 
-						   flatVoxels[voxel_index].light_y / 255.0,
-						   flatVoxels[voxel_index].light_z / 255.0) / float(flatVoxels[voxel_index].accum_count);
+		atomicAdd(flatVoxels[voxel_index].accum_count, 1);
 	}
-	else
-		final_light = color_light[1];
+
+	// int voxel_index = -1;
+	// vec3[2] color_light = pathtrace(ray, rng_state, voxel_index);
+
+	// vec3 final_light;
+
+	// if (voxel_index != -1)
+	// {
+	// 	if (flatVoxels[voxel_index].accum_count < 20000)
+	// 	{
+	// 		atomicAdd(flatVoxels[voxel_index].light_x, int(color_light[1].x * color_light[0].x * 255.));
+	// 		atomicAdd(flatVoxels[voxel_index].light_y, int(color_light[1].y * color_light[0].y * 255.));
+	// 		atomicAdd(flatVoxels[voxel_index].light_z, int(color_light[1].z * color_light[0].z * 255.));
+	// 		atomicAdd(flatVoxels[voxel_index].accum_count, 1);
+
+	// 	}
+
+	// 	final_light = vec3(flatVoxels[voxel_index].light_x / 255.0, 
+	// 					   flatVoxels[voxel_index].light_y / 255.0,
+	// 					   flatVoxels[voxel_index].light_z / 255.0) / float(flatVoxels[voxel_index].accum_count);
+	// }
+	// else
+	// 	final_light = color_light[1];
 
 
-	imageStore(output_image, pixel_coords, vec4(final_light, 1.0));
+	// imageStore(output_image, pixel_coords, vec4(final_light, 1.0));
+
+	
+
+	// vec2 jitter = randomPointInCircle(rng_state) * 1;
+
+	// vec2 uv = ((vec2(pixel_coords)) / u_resolution) * 2.0 - 1.0;
+	// uv.x *= u_resolution.x / u_resolution.y;
+
+	// Ray ray = initRay(uv, rng_state);
+
 }
